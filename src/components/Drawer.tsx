@@ -11,11 +11,11 @@ export default function Drawer({ open, onClose, children, width = 320 }: { open:
     return () => document.removeEventListener('keydown', onEsc);
   }, [open, onClose]);
   return (
-    <div className={`fixed inset-0 z-[1200] pointer-events-none ${open ? '' : 'hidden'}`}>
-      <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={onClose} />
-      <div className="absolute inset-y-0 left-0 pointer-events-auto" style={{ width }}>
+    <div className={`fixed inset-0 z-[1200] transition-all duration-300 ease-in-out ${open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+      <div className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ease-in-out ${open ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
+      <div className={`absolute inset-y-0 left-0 pointer-events-auto transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'}`} style={{ width }}>
         <div className="h-full w-full bg-white shadow-2xl border-r flex flex-col">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
+          <div className="flex items-center justify-between px-3 py-4 border-b border-gray-200">
             
             {/* Header with Logo */}
             <div className="flex items-center space-x-3">
