@@ -1,8 +1,10 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { X, ChevronRight, ChevronDown, FolderOpen, Tag } from 'lucide-react';
 import type { CategoryKey } from './CategoryTabs';
 import Modal from '@/components/Modal';
+import { useConfig } from '@/app/config-context';
+import type { CategoryNode as RawCategoryNode } from '@/lib/categories';
 
 interface CategoryNode {
   key: string;
@@ -13,7 +15,20 @@ interface CategoryNode {
   children?: CategoryNode[];
 }
 
+function transform(node: RawCategoryNode): CategoryNode {
+  return {
+    key: node.key,
+    label: node.label,
+    icon: node.icon,
+    enabled: node.enabled !== false,
+    createEnabled: node.createEnabled,
+    children: Array.isArray(node.children) ? node.children.map(transform) : [],
+  };
+}
+
 export default function CreateAdSelectorModal({ open, onCancel, onSelect, defaultCategory }: { open: boolean, onCancel: () => void, onSelect: (key: CategoryKey) => void, defaultCategory?: CategoryKey }) {
+  const { categories: rawCategories } = useConfig();
+  const root = useMemo(() => transform(rawCategories as RawCategoryNode), [rawCategories]);
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const modalRef = useRef<HTMLDivElement>(null);
@@ -52,26 +67,19 @@ export default function CreateAdSelectorModal({ open, onCancel, onSelect, defaul
       return keys;
     }
 
-    (async () => {
-      try {
-        const res = await fetch('/api/categories');
-        if (!res.ok) return;
-        const root = (await res.json()) as CategoryNode;
-        const topLevelCategories = root.children || [];
-        setCategories(topLevelCategories);
+    const topLevelCategories = root.children || [];
+    setCategories(topLevelCategories);
 
-        // Expand to match the currently selected hierarchy if provided
-        const initialExpanded = buildKeySetTo(defaultCategory, root);
-        if (initialExpanded.size > 0) {
-          setExpandedNodes(initialExpanded);
-        } else if (topLevelCategories.length === 1) {
-          setExpandedNodes(new Set([topLevelCategories[0].key]));
-        } else {
-          setExpandedNodes(new Set());
-        }
-      } catch {}
-    })();
-  }, [open, defaultCategory]);
+    // Expand to match the currently selected hierarchy if provided
+    const initialExpanded = buildKeySetTo(defaultCategory, root);
+    if (initialExpanded.size > 0) {
+      setExpandedNodes(initialExpanded);
+    } else if (topLevelCategories.length === 1) {
+      setExpandedNodes(new Set([topLevelCategories[0].key]));
+    } else {
+      setExpandedNodes(new Set());
+    }
+  }, [open, defaultCategory, root]);
 
   const toggleExpanded = (key: string) => {
     setExpandedNodes(prev => {

@@ -1,7 +1,9 @@
 "use client";
 
 import { Home, Building2, Shirt, Landmark, ChevronDown, Layers, Car, Bike } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useConfig } from "@/app/config-context";
+import type { CategoryNode as RawCategoryNode } from "@/lib/categories";
 
 type CategoryKey = string;
 
@@ -152,6 +154,26 @@ const fallbackCategoryTree: CategoryNode = {
   ],
 };
 
+function transform(node: RawCategoryNode): CategoryNode {
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    Home,
+    Building2,
+    Shirt,
+    Landmark,
+    Layers,
+    Car,
+    Bike,
+  } as any;
+  const Icon = node.icon && iconMap[node.icon] ? iconMap[node.icon] : undefined;
+  return {
+    key: node.key as CategoryKey,
+    label: node.label,
+    Icon,
+    enabled: node.enabled !== false,
+    children: Array.isArray(node.children) ? node.children.map(transform) : [],
+  };
+}
+
 function findNode(root: CategoryNode, key: CategoryKey): CategoryNode | null {
   if (root.key === key) return root;
   if (!root.children) return null;
@@ -186,44 +208,8 @@ function topLevelOf(key: CategoryKey): CategoryKey {
 
 export default function CategoryTabs({ active, onChange, compact = false }: CategoryTabsProps) {
   const [open, setOpen] = useState(false);
-  const [remoteTree, setRemoteTree] = useState<CategoryNode | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    type ApiNode = { key: string; label: string; icon?: string; enabled?: boolean; children?: ApiNode[] };
-    const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-      Home,
-      Building2,
-      Shirt,
-      Landmark,
-      Layers,
-      Car,
-      Bike,
-    } as any;
-    function transform(node: ApiNode): CategoryNode {
-      const Icon = node.icon && iconMap[node.icon] ? iconMap[node.icon] : undefined;
-      return {
-        key: node.key,
-        label: node.label,
-        Icon,
-        enabled: node.enabled !== false,
-        children: Array.isArray(node.children) ? node.children.map(transform) : [],
-      };
-    }
-    (async () => {
-      try {
-        const res = await fetch('/api/categories');
-        if (!res.ok) return;
-        const data = (await res.json()) as ApiNode;
-        if (!isMounted || !data) return;
-        const tree = transform(data);
-        setRemoteTree(tree);
-      } catch {}
-    })();
-    return () => { isMounted = false; };
-  }, []);
-
-  let categoryTree = remoteTree || fallbackCategoryTree;
+  const { categories: rawCategories } = useConfig();
+  const categoryTree = useMemo(() => (rawCategories ? transform(rawCategories as RawCategoryNode) : fallbackCategoryTree), [rawCategories]);
 
   const effectiveActiveKey = useMemo(() => {
     const children = categoryTree.children || [];

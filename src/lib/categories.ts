@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
-import { categoryTree as sharedCategoryTree } from '@/lib/categories';
+export type CategoryKey = string;
 
-interface CategoryNode {
-  key: string;
+export interface CategoryNode {
+  key: CategoryKey;
   label: string;
   icon?: string;
   enabled?: boolean;
@@ -10,8 +9,8 @@ interface CategoryNode {
   children?: CategoryNode[];
 }
 
-// Single source of truth for category hierarchy (Property only; clothing/vehicles ignored for now)
-const categoryTree: CategoryNode = {
+// Single source of truth for category hierarchy
+export const categoryTree: CategoryNode = {
   key: 'all',
   label: 'All',
   icon: 'Layers',
@@ -122,7 +121,7 @@ const categoryTree: CategoryNode = {
                   enabled: true,
                   children: [
                     { key: 'property.for-sale.building.industrial.warehouse', label: 'Warehouse', enabled: true },
-                    { key: 'property.for-sale.building.industrial.manufacturing', label: 'Manufacturing', enabled: true },
+                    { key: 'property-for-sale.building.industrial.manufacturing', label: 'Manufacturing', enabled: true },
                   ],
                 },
                 { key: 'property.for-sale.building.mixed-use', label: 'Mixed Use', enabled: true },
@@ -136,8 +135,14 @@ const categoryTree: CategoryNode = {
   ],
 };
 
-export async function GET() {
-  return NextResponse.json(sharedCategoryTree);
+export function flattenCategories(node: CategoryNode): CategoryNode[] {
+  const result: CategoryNode[] = [];
+  function dfs(n: CategoryNode) {
+    result.push(n);
+    if (n.children) n.children.forEach(dfs);
+  }
+  dfs(node);
+  return result;
 }
 
 
