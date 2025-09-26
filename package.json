@@ -3,25 +3,46 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node server.js",
+    "deploy": "bash scripts/deploy.sh",
+    "deply": "bash scripts/deploy.sh",
+    "postinstall": "prisma generate",
     "lint": "eslint"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
+    "@auth/prisma-adapter": "^2.10.0",
+    "@aws-sdk/client-s3": "^3.893.0",
+    "@jsquash/avif": "2.0.0",
+    "@maptiler/sdk": "^2.3.4",
+    "@prisma/client": "^6.16.2",
+    "@react-google-maps/api": "^2.19.3",
+    "bcryptjs": "^3.0.2",
+    "lucide-react": "^0.454.0",
+    "maplibre-gl": "^4.7.1",
+    "next": "15.5.3",
+    "next-auth": "^4.24.11",
+    "prisma": "^6.16.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.3"
+    "zod": "^4.1.9",
+    "axios": "^1.11.0",
+    "compression": "^1.8.0",
+    "express": "^4.21.2",
+    "next-seo": "^6.8.0",
+    "puppeteer": "^24.9.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

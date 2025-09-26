@@ -24,3 +24,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure readable text on white surfaces even in dark mode */
+.bg-white, .bg-gray-50, .bg-gray-100 {
+  color: #111827; /* text-gray-900 */
+}
+
+/* Form controls default readable text */
+input, select, textarea {
+  color: #111827; /* text-gray-900 */
+}
+input::placeholder, textarea::placeholder {
+  color: #9ca3af; /* text-gray-400 */
+}
+
+/* Map popups (hover preview) */
+.hover-preview .maplibregl-popup-content {
+  padding: 0; /* content has its own padding */
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+.hover-preview .maplibregl-popup-tip {
+  /* slightly smaller arrow */
+  border-width: 6px;
+}
+

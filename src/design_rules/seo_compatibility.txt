@@ -1,0 +1,51 @@
+# App-Wide Modal + SEO Rules
+
+1. **Every resource/page has a standalone HTML route**
+
+   * Example routes:
+
+     * `/ad/12345-nice-apartment`
+     * `/user/67890-profile`
+     * `/category/real-estate`
+   * Each route must return **SEO-friendly HTML** with `<title>`, `<meta>`, structured data, and full content.
+   * This guarantees search engines can index everything and links work without JavaScript.
+
+2. **Main app pages (like `/ads`, `/users`, `/categories`) act as the background context**
+
+   * Clicking on any item should **open it in a modal**, not reload the page.
+   * Use `history.pushState` (or router navigation) to update the URL to the standalone route.
+
+3. **Direct visits and reloads**
+
+   * If a user or crawler visits `/resource/[id]` directly:
+
+     * Server renders the full standalone page in HTML.
+     * If JavaScript is available, the app should load the parent view in the background (map, list, dashboard, etc.) and **open the modal automatically** with the resource content.
+
+4. **Closing modals & navigation**
+
+   * Closing the modal should return to the parent page (e.g., `/ads`, `/users`).
+   * The browser’s back/forward buttons must close or reopen modals accordingly without full reloads.
+
+5. **Progressive enhancement rule**
+
+   * All links must be standard `<a href="/...">` so that:
+
+     * Without JS → links work as normal navigation.
+     * With JS → links are intercepted and opened in modals.
+
+6. **Sharing & external access**
+
+   * Any shared link (`/resource/[id]`) must:
+
+     * Open as a modal over the parent page when JS is enabled.
+     * Show as a standalone HTML page when JS is disabled.
+
+7. **SEO priority**
+
+   * Crawlers should always get fully rendered HTML for each route.
+   * JavaScript enhancements must never hide content from crawlers.
+
+---
+
+This way, the **entire app behaves like a smooth single-page app with modals**, but still has **clean, crawlable, shareable pages** for SEO.

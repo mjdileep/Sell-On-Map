@@ -1,103 +1,442 @@
-import Image from "next/image";
+"use client";
+import { Suspense, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { Loader2, Plus } from "lucide-react";
+import MapSearch from "@/components/MapSearch";
+import CategoryTabs, { type CategoryKey } from "@/components/ads/CategoryTabs";
+import { resolveCreateAdModal, resolveDetailModal, isPropertyCategory } from "@/components/ads/resolver";
+import CreateAdSelectorModal from "@/components/ads/CreateAdSelectorModal";
+import type { Rental as RentalType } from "@/types/rental";
+import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useAuthModal } from "@/app/providers";
+import { useConfig } from "@/app/config-context";
 
-export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+const MapWithNoSSR = dynamic(() => import("@/components/MapTilerMap"), { ssr: false });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+interface Rental {
+  id: string;
+  lat: number;
+  lng: number;
+  title: string;
+  description: string;
+  price: number;
+  address: string;
+  createdAt: string;
+  category?: string;
+}
+
+export default function Marketplace() {
+  const { country, zoom: fallbackZoom } = useConfig();
+  const { status } = useSession();
+  const { openAuthModal } = useAuthModal();
+  const [rentals, setRentals] = useState<Rental[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [center, setCenter] = useState<[number, number]>([6.9271, 79.8612]);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [bounds, setBounds] = useState<{ sw: [number, number]; ne: [number, number] } | null>(null);
+  const [targetBounds, setTargetBounds] = useState<{ south: number; west: number; north: number; east: number } | null>(null);
+  const [targetFitOptions, setTargetFitOptions] = useState<{ padding?: number; maxZoom?: number; duration?: number } | null>(null);
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
+  const [selected, setSelected] = useState<RentalType | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createPickerOpen, setCreatePickerOpen] = useState(false);
+  const [zoom, setZoom] = useState(fallbackZoom);
+  const lastFetchCenterRef = useRef<[number, number] | null>(null);
+  const lastFetchCategoryRef = useRef<CategoryKey | null>(null);
+  const debounceRef = useRef<number | null>(null);
+  const FETCH_DISTANCE_THRESHOLD_METERS = 300;
+  const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
+  const fetchControllerRef = useRef<AbortController | null>(null);
+  // Wrapped usage of useSearchParams in Suspense below via SearchParamSync
+
+  function SearchParamSync() {
+    const searchParams = useSearchParams();
+    useEffect(() => {
+      const fromQuery = (searchParams?.get("category") || "").trim();
+      if (fromQuery) {
+        setActiveCategory(fromQuery as CategoryKey);
+      }
+    }, [searchParams]);
+    useEffect(() => {
+      const create = (searchParams?.get('create') || '').trim();
+      if (create === '1') {
+        if (status !== 'authenticated') {
+          openAuthModal({ reason: 'Sign In First', callbackUrl: '/?create=1' });
+        } else {
+          setCreatePickerOpen(true);
+        }
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('create');
+          window.history.replaceState({}, '', url.toString());
+        } catch {}
+      }
+    }, [searchParams, status, openAuthModal]);
+    return null;
+  }
+
+  function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const R = 6371000;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  useEffect(() => {
+    async function fallbackToCountryCenter() {
+      if (!country || country === 'Unknown') return;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(country)}&limit=1`, {
+          headers: {
+            "Accept": "application/json",
+            "User-Agent": "sellonmap.com config-fallback",
+          },
+        });
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const { lat, lon } = data[0];
+          const clat = parseFloat(lat);
+          const clon = parseFloat(lon);
+          if (Number.isFinite(clat) && Number.isFinite(clon)) {
+            setCenter([clat, clon]);
+            setZoom(fallbackZoom);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setCenter([latitude, longitude]);
+          setUserLocation([latitude, longitude]);
+          setZoom(13);
+        },
+        (err) => {
+          console.log('geolocation error', err);
+          fallbackToCountryCenter();
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 10000 }
+      );
+    } else {
+      fallbackToCountryCenter();
+    }
+  }, [country]);
+
+  function boundsFromCenterRadiusMeters(lat: number, lng: number, radiusMeters: number): { south: number; west: number; north: number; east: number } {
+    const earthRadius = 6378137; // meters
+    const dLat = (radiusMeters / earthRadius) * (180 / Math.PI);
+    const dLng = (radiusMeters / (earthRadius * Math.cos((Math.PI * lat) / 180))) * (180 / Math.PI);
+    return {
+      south: lat - dLat,
+      north: lat + dLat,
+      west: lng - dLng,
+      east: lng + dLng,
+    };
+  }
+
+  function fitOptionsForKind(kind?: string | null): { padding?: number; maxZoom?: number; duration?: number } {
+    switch ((kind || '').toLowerCase()) {
+      case 'poi':
+        return { padding: 60, maxZoom: 17, duration: 600 };
+      case 'address':
+      case 'street':
+        return { padding: 60, maxZoom: 16, duration: 600 };
+      case 'neighbourhood':
+        return { padding: 60, maxZoom: 14, duration: 600 };
+      case 'village':
+        return { padding: 60, maxZoom: 13, duration: 600 };
+      case 'town':
+        return { padding: 60, maxZoom: 12, duration: 600 };
+      case 'city':
+        return { padding: 60, maxZoom: 11, duration: 600 };
+      case 'region':
+        return { padding: 60, maxZoom: 9, duration: 600 };
+      case 'state':
+        return { padding: 60, maxZoom: 8, duration: 600 };
+      case 'country':
+        return { padding: 60, maxZoom: 6, duration: 600 };
+      default:
+        return { padding: 60, maxZoom: 14, duration: 600 };
+    }
+  }
+
+  function fallbackRadiusForKindMeters(kind?: string | null): number {
+    switch ((kind || '').toLowerCase()) {
+      case 'poi':
+        return 1000;
+      case 'address':
+      case 'street':
+        return 1800;
+      case 'neighbourhood':
+        return 4000;
+      case 'village':
+        return 8000;
+      case 'town':
+        return 15000;
+      case 'city':
+        return 25000;
+      case 'region':
+        return 75000;
+      case 'state':
+        return 150000;
+      case 'country':
+        return 500000;
+      default:
+        return 12000;
+    }
+  }
+
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = window.setTimeout(() => {
+      const categoryChanged = lastFetchCategoryRef.current !== activeCategory;
+      if (bounds) {
+        const prev = lastBoundsRef.current;
+        let changedByViewport = true;
+        if (prev) {
+          const currHeight = Math.abs(bounds.ne[0] - bounds.sw[0]);
+          const currWidth = Math.abs(bounds.ne[1] - bounds.sw[1]);
+          const prevHeight = Math.abs(prev.ne[0] - prev.sw[0]);
+          const prevWidth = Math.abs(prev.ne[1] - prev.sw[1]);
+          const eps = 1e-9;
+          const latShift = Math.max(
+            Math.abs(prev.sw[0] - bounds.sw[0]),
+            Math.abs(prev.ne[0] - bounds.ne[0])
+          ) / (currHeight || eps);
+          const lngShift = Math.max(
+            Math.abs(prev.sw[1] - bounds.sw[1]),
+            Math.abs(prev.ne[1] - bounds.ne[1])
+          ) / (currWidth || eps);
+          const heightChange = prevHeight > 0 ? Math.abs(currHeight - prevHeight) / prevHeight : 1;
+          const widthChange = prevWidth > 0 ? Math.abs(currWidth - prevWidth) / prevWidth : 1;
+          changedByViewport = Math.max(latShift, lngShift, heightChange, widthChange) >= 0.10;
+        }
+        if (categoryChanged || changedByViewport) {
+          fetchListingsByBounds(bounds);
+          lastBoundsRef.current = bounds;
+          lastFetchCategoryRef.current = activeCategory;
+          lastFetchCenterRef.current = center;
+        }
+      } else {
+        const last = lastFetchCenterRef.current;
+        const distance = last ? haversineMeters(last[0], last[1], center[0], center[1]) : Infinity;
+        if (categoryChanged || distance > FETCH_DISTANCE_THRESHOLD_METERS) {
+          fetchListings(center[0], center[1], 50);
+          lastFetchCenterRef.current = center;
+          lastFetchCategoryRef.current = activeCategory;
+        }
+      }
+    }, 400);
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [center[0], center[1], activeCategory, bounds]);
+
+  function fetchParamsFromBounds(b: { sw: [number, number]; ne: [number, number] }): URLSearchParams {
+    const params = new URLSearchParams();
+    params.append('swLat', String(b.sw[0]));
+    params.append('swLng', String(b.sw[1]));
+    params.append('neLat', String(b.ne[0]));
+    params.append('neLng', String(b.ne[1]));
+    return params;
+  }
+
+  async function fetchListings(lat?: number, lng?: number, radius?: number) {
+    setIsFetching(true);
+    try {
+      fetchControllerRef.current?.abort();
+      const controller = new AbortController();
+      fetchControllerRef.current = controller;
+      const params = new URLSearchParams();
+      if (lat && lng && radius) {
+        params.append("lat", String(lat));
+        params.append("lng", String(lng));
+        params.append("radius", String(radius));
+      }
+      const filtered = Boolean(lat && lng && radius);
+      params.append('category', activeCategory);
+      // Pass viewport size so server can choose K full markers
+      try {
+        const vw = Math.max(320, Math.round((window as any).innerWidth || 0));
+        const vh = Math.max(320, Math.round((window as any).innerHeight || 0));
+        params.append('vw', String(vw));
+        params.append('vh', String(vh));
+      } catch {}
+      const res = await fetch(`/api/ads?${params.toString()}`, { signal: controller.signal });
+      const data = await res.json();
+      if (filtered && Array.isArray(data) && data.length === 0) {
+        const resAll = await fetch(`/api/ads?category=${encodeURIComponent(activeCategory)}`, { signal: controller.signal });
+        const all = await resAll.json();
+        setRentals(all);
+      } else {
+        setRentals(data);
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        return;
+      }
+    } finally {
+      setTimeout(() => {
+        setIsFetching(false);
+        setInitialLoading(false);
+      }, 1000);
+    }
+  }
+
+  async function fetchListingsByBounds(b: { sw: [number, number]; ne: [number, number] }) {
+    setIsFetching(true);
+    try {
+      fetchControllerRef.current?.abort();
+      const controller = new AbortController();
+      fetchControllerRef.current = controller;
+      const params = fetchParamsFromBounds(b);
+      params.append('category', activeCategory);
+      // Pass viewport size so server can choose K full markers
+      try {
+        const vw = Math.max(320, Math.round((window as any).innerWidth || 0));
+        const vh = Math.max(320, Math.round((window as any).innerHeight || 0));
+        params.append('vw', String(vw));
+        params.append('vh', String(vh));
+      } catch {}
+      const res = await fetch(`/api/ads?${params.toString()}`, { signal: controller.signal });
+      const data = await res.json();
+      setRentals(data);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        return;
+      }
+    } finally {
+      setIsFetching(false);
+      setInitialLoading(false);
+    }
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-blue-600" />
+          <p className="mt-4 text-gray-600">Loading listings on the map...</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen w-screen relative">
+      <Suspense fallback={null}>
+        <SearchParamSync />
+      </Suspense>
+      <MapWithNoSSR 
+        center={center} 
+        zoom={zoom} 
+        rentals={rentals as any} 
+        userLocation={userLocation || undefined}
+        targetBounds={targetBounds}
+        targetFitOptions={targetFitOptions || { padding: 60, maxZoom: 14, duration: 600 }}
+        onBoundsBoxChange={(b) => setBounds(b)}
+        onCenterChange={(lat: number, lng: number) => setCenter([lat, lng])}
+        onSelectRental={(rental: RentalType) => { setSelected(rental); setDetailOpen(true); }}
+        style={{ height: '100vh', width: '100vw' }} 
+      />
+
+      <div className="hidden ml-12 lg:flex absolute top-4 left-4 z-[1002] max-w-[95vw] gap-3 items-start">
+        <div className="shadow-lg rounded-lg w-[380px]">
+          <MapSearch onSelect={(lat, lon, meta) => {
+            setCenter([lat, lon]);
+            const radius = fallbackRadiusForKindMeters(meta?.kind);
+            const b = meta?.bounds || boundsFromCenterRadiusMeters(lat, lon, radius);
+            setTargetBounds(b);
+            setTargetFitOptions(fitOptionsForKind(meta?.kind));
+          }} onLocate={(lat, lon) => { setUserLocation([lat, lon]); setCenter([lat, lon]); setTargetBounds(boundsFromCenterRadiusMeters(lat, lon, 8000)); }} provider="google" />
+        </div>
+        <div className="max-w-[50vw] overflow-x-auto mt-0.5">
+          <CategoryTabs active={activeCategory} onChange={setActiveCategory} />
+        </div>
+      </div>
+
+      <div className="lg:hidden ml-10 fixed top-4 left-1/4 -translate-x-1/4 z-[1002] w-[calc(100vw-64px)] max-w-md space-y-2">
+        <div className="shadow-[0_4px_15px_rgba(0,0,0,0.1)] rounded-xl">
+          <MapSearch onSelect={(lat, lon, meta) => {
+            setCenter([lat, lon]);
+            const radius = fallbackRadiusForKindMeters(meta?.kind);
+            const b = meta?.bounds || boundsFromCenterRadiusMeters(lat, lon, radius);
+            setTargetBounds(b);
+            setTargetFitOptions(fitOptionsForKind(meta?.kind));
+          }} onLocate={(lat, lon) => { setUserLocation([lat, lon]); setCenter([lat, lon]); setTargetBounds(boundsFromCenterRadiusMeters(lat, lon, 8000)); }} />
+        </div>
+      </div>
+
+      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[calc(100vw-8px)] z-[1002]">
+        <div className="overflow-x-auto">
+          <CategoryTabs active={activeCategory} onChange={setActiveCategory} compact={false} />
+        </div>
+      </div>
+
+      <button 
+        onClick={() => {
+          if (status !== 'authenticated') {
+            openAuthModal({ reason: 'Sign In First', callbackUrl: '/?create=1' });
+            return;
+          }
+          setCreatePickerOpen(true);
+        }} 
+        className="absolute right-3 top-16 md:top-4 z-[1001] bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-lg flex items-center justify-center rounded-full md:rounded-lg px-2 py-2"
+        aria-label="Create a new ad"
+      >
+        <Plus className="h-6 w-6 md:mr-1" />
+        <span className="hidden md:inline pr-1">Create Free Ad</span>
+      </button>
+      <CreateAdSelectorModal
+        open={createPickerOpen}
+        defaultCategory={activeCategory}
+        onCancel={() => setCreatePickerOpen(false)}
+        onSelect={(cat) => {
+          setCreatePickerOpen(false);
+          setActiveCategory(cat);
+          setCreateOpen(true);
+        }}
+      />
+
+      {(() => {
+        if (!selected) return null;
+        const cat = (selected as any).category || '';
+        if (!isPropertyCategory(cat)) return null;
+        const DetailModal = resolveDetailModal(cat);
+        if (!DetailModal) return null;
+        return (
+          <DetailModal open={detailOpen} ad={selected} onClose={() => setDetailOpen(false)} />
+        );
+      })()}
+
+      {(() => {
+        if (!createOpen) return null;
+        if (!isPropertyCategory(activeCategory)) return null;
+        const CreateModal = resolveCreateAdModal(activeCategory);
+        if (!CreateModal) return null;
+        return (
+          <CreateModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => fetchListings()} category={activeCategory} />
+        );
+      })()}
     </div>
   );
 }
+
+
