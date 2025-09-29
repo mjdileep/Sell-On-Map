@@ -16,33 +16,164 @@ export default function FullDetail({ ad }: { ad: Ad }) {
         description={ad.description}
         price={ad.price}
         currency={(ad as any).currency || 'USD'}
-        priceSuffix={details?.billingPeriod ? `/${details.billingPeriod}` : '/month'}
+        priceSuffix={(String((ad as any).category || '').toLowerCase().includes('property.rental.building.residential.shared')) ? '/person/mo' : (details?.billingPeriod ? `/${details.billingPeriod}` : '/month')}
         priceClassName="text-blue-700"
         address={ad.address}
         lat={ad.lat}
         lng={ad.lng}
       />
-      <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-        {details?.type && (<div><span className="text-gray-500">Type:</span> {String(details.type.replace('-', ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}</div>)}
-        {details?.floorArea?.value && details?.floorArea?.unit && (<div><span className="text-gray-500">Floor Area:</span> {details.floorArea.value} {unitNames[details.floorArea.unit as keyof typeof unitNames]}</div>)}
-        {details?.landSize?.value && details?.landSize?.unit && (<div><span className="text-gray-500">Land Size:</span> {details.landSize.value} {unitNames[details.landSize.unit as keyof typeof unitNames]}</div>)}
-        {details?.usage?.zoning && (<div><span className="text-gray-500">Zoning:</span> {details.usage.zoning}</div>)}
-        {details?.structure?.floors && (<div><span className="text-gray-500">Floors:</span> {details.structure.floors}</div>)}
-        {details?.structure?.buildYear && (<div><span className="text-gray-500">Build Year:</span> {details.structure.buildYear}</div>)}
-        {details?.structure?.condition && (<div><span className="text-gray-500">Condition:</span> {details.structure.condition}</div>)}
-        {details?.rooms?.bedrooms && (<div><span className="text-gray-500">Bedrooms:</span> {details.rooms.bedrooms}</div>)}
-        {details?.rooms?.bathrooms && (<div><span className="text-gray-500">Bathrooms:</span> {details.rooms.bathrooms}</div>)}
-        {details?.parking && (<div><span className="text-gray-500">Parking:</span> {details.parking}</div>)}
+      <div className="p-2 md:p-4 grid grid-cols-1 gap-2 text-sm text-gray-700">
+        {details?.type && (
+          <div className="flex gap-1">
+            <span>🏠</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Type: </span>
+              <span>{String(details.type.replace('-', ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}</span>
+            </div>
+          </div>
+        )}
+        {typeof details?.rooms?.beds === 'number' && (
+          <div className="flex gap-1">
+            <span>🛏️</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Vacant Beds: </span>
+              <span className="font-semibold">{details.rooms.beds}</span>
+            </div>
+          </div>
+        )}
+        {details?.floorArea?.value && details?.floorArea?.unit && (
+          <div className="flex gap-1">
+            <span>📐</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Floor Area: </span>
+              <span>{details.floorArea.value} {unitNames[details.floorArea.unit as keyof typeof unitNames]}</span>
+            </div>
+          </div>
+        )}
+        {details?.landSize?.value && details?.landSize?.unit && (
+          <div className="flex gap-1">
+            <span>📏</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Land Size: </span>
+              <span>{details.landSize.value} {unitNames[details.landSize.unit as keyof typeof unitNames]}</span>
+            </div>
+          </div>
+        )}
+        {details?.usage?.zoning && (
+          <div className="flex gap-1">
+            <span>📋</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Zoning: </span>
+              <span>{details.usage.zoning}</span>
+            </div>
+          </div>
+        )}
+        {details?.structure?.floors && (
+          <div className="flex gap-1">
+            <span>🏢</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Floors: </span>
+              <span>{details.structure.floors}</span>
+            </div>
+          </div>
+        )}
+        {details?.structure?.buildYear && (
+          <div className="flex gap-1">
+            <span>📅</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Build Year: </span>
+              <span>{details.structure.buildYear}</span>
+            </div>
+          </div>
+        )}
+        {details?.structure?.condition && (
+          <div className="flex gap-1">
+            <span>🔧</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Condition: </span>
+              <span>{details.structure.condition}</span>
+            </div>
+          </div>
+        )}
+        {details?.rooms?.bedrooms && (
+          <div className="flex gap-1">
+            <span>🛏️</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Bedrooms: </span>
+              <span>{details.rooms.bedrooms}</span>
+            </div>
+          </div>
+        )}
+        {details?.rooms?.bathrooms && (
+          <div className="flex gap-1">
+            <span>🚿</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Bathrooms: </span>
+              <span>{details.rooms.bathrooms}</span>
+            </div>
+          </div>
+        )}
+        {details?.parking && (
+          <div className="flex gap-1">
+            <span>🚗</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Parking: </span>
+              <span>{details.parking}</span>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="text-sm text-gray-700 space-y-1">
-        {details?.leaseTerms?.advancePayment?.value && (<div><span className="text-gray-500">Advance:</span> {details.leaseTerms.advancePayment.value} {details.leaseTerms.advancePayment.unit}</div>)}
-        {details?.leaseTerms?.minLeaseDuration?.value && (<div><span className="text-gray-500">Min Lease:</span> {details.leaseTerms.minLeaseDuration.value} {details.leaseTerms.minLeaseDuration.unit}</div>)}
-        {details?.leaseTerms?.maxLeaseDuration?.value && (<div><span className="text-gray-500">Max Lease:</span> {details.leaseTerms.maxLeaseDuration.value} {details.leaseTerms.maxLeaseDuration.unit}</div>)}
-        {details?.extras?.amenitiesUtilities && (<div><span className="text-gray-500">Amenities/Utilities:</span> {details.extras.amenitiesUtilities}</div>)}
-        {details?.extras?.leaseType && (<div><span className="text-gray-500">Lease Type:</span> {details.extras.leaseType}</div>)}
+      <div className="px-2 md:px-4 text-sm text-gray-700 space-y-1">
+        {details?.leaseTerms?.advancePayment?.value && (
+          <div className="flex gap-1">
+            <span>💰</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Advance: </span>
+              <span>{details.leaseTerms.advancePayment.value} {details.leaseTerms.advancePayment.unit}</span>
+            </div>
+          </div>
+        )}
+        {details?.leaseTerms?.minLeaseDuration?.value && (
+          <div className="flex gap-1">
+            <span>⏰</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Min Lease: </span>
+              <span>{details.leaseTerms.minLeaseDuration.value} {details.leaseTerms.minLeaseDuration.unit}</span>
+            </div>
+          </div>
+        )}
+        {details?.leaseTerms?.maxLeaseDuration?.value && (
+          <div className="flex gap-1">
+            <span>⏰</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Max Lease: </span>
+              <span>{details.leaseTerms.maxLeaseDuration.value} {details.leaseTerms.maxLeaseDuration.unit}</span>
+            </div>
+          </div>
+        )}
+        {details?.extras?.amenitiesUtilities && (
+          <div className="flex gap-1">
+            <span>🔧</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Amenities/Utilities: </span>
+              <span>{details.extras.amenitiesUtilities}</span>
+            </div>
+          </div>
+        )}
+        {details?.extras?.leaseType && (
+          <div className="flex gap-1">
+            <span>📋</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Lease Type: </span>
+              <span>{details.extras.leaseType}</span>
+            </div>
+          </div>
+        )}
         <AdContactInfo contact={details?.extras?.contact as any} />
       </div>
+      <div className="p-2 md:p-4 pb-0"> 
       <AdListedFooter createdAt={ad.createdAt} mode="inline" />
+       </div>
     </>
   );
 }

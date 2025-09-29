@@ -34,7 +34,7 @@ export default function FullDetailModal({ open, rental, onClose }: FullDetailMod
   return (
     <Modal open={open} onClose={onClose} title={rental.title}>
       <div className="bg-white w-full min-w-xs sm:min-w-sm md:min-w-md lg:min-w-lg xl:min-w-2xl max-w-2xl rounded-2xl overflow-hidden">
-        <div className="p-2 md:p-4 space-y-3 max-h-[75vh] overflow-y-auto">
+        <div className="space-y-1 max-h-[75vh] overflow-y-auto">
           <FullDetail ad={rental as any} />
         </div>
         <AdListedFooter createdAt={rental.createdAt} categoryLabel={rental.category?.split('.').slice(1).map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).replace('-', ' ')).join(' • ')} linkHref={`/ad/${rental.id}/${slugify(rental.title)}`} mode="footer" />

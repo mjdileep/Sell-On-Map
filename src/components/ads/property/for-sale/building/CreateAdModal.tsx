@@ -76,6 +76,13 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    // Validate location is selected
+    if (!address.trim() || !location) {
+      alert('Please enter an address and select a location on the map');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await fetch('/api/ads', {
@@ -86,8 +93,8 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
           description,
           price: parseFloat(price),
           address,
-          lat: location?.lat || 0,
-          lng: location?.lng || 0,
+          lat: location?.lat,
+          lng: location?.lng,
           category: (category || 'property.for-sale.building') + (type ? (category?.includes(type) ? '' : '.' + type) : ''),
           currency,
           details: {

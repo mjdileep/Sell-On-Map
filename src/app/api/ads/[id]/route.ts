@@ -7,13 +7,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params;
   const ad = await prisma.ad.findUnique({
     where: { id },
-    include: {
-      rentalDetail: true,
-      landRentalDetail: true,
-      buildingRentalDetail: true,
-      landSaleDetail: true,
-      buildingSaleDetail: true,
-    },
   } as any);
   if (!ad) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   // Public read should only expose approved+active ads
@@ -26,15 +19,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
   }
-  const details =
-    (ad as any).landRentalDetail?.attributes ||
-    (ad as any).buildingRentalDetail?.attributes ||
-    (ad as any).rentalDetail?.attributes ||
-    (ad as any).landSaleDetail?.attributes ||
-    (ad as any).buildingSaleDetail?.attributes ||
-    undefined;
-  const { rentalDetail, landRentalDetail, buildingRentalDetail, landSaleDetail, buildingSaleDetail, ...rest } = ad as any;
-  return NextResponse.json({ ...rest, details });
+  const { attributes, ...rest } = ad as any;
+  return NextResponse.json({ ...rest, details: attributes || undefined });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -58,6 +44,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (payload.lng !== undefined) data.lng = Number(payload.lng);
     if (payload.currency !== undefined) data.currency = String(payload.currency);
     if (payload.category !== undefined) data.category = String(payload.category);
+    if (payload.details && typeof payload.details === 'object') data.attributes = payload.details;
     if (Array.isArray(payload.photos)) data.photos = payload.photos.map((p: any) => String(p));
     const details = payload.details && typeof payload.details === 'object' ? payload.details : undefined;
     const prevCategory = ad.category;
@@ -66,50 +53,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Update the ad first
     const updatedAd = await tx.ad.update({ where: { id }, data });
 
-    // If category changed, delete old leaf and create new leaf
-    if (nextCategory !== prevCategory) {
-      if (prevCategory.startsWith('property.rental.land.')) {
-        await trx.landRentalDetail.deleteMany({ where: { adId: id } });
-      } else if (prevCategory.startsWith('property.rental.building.')) {
-        await trx.buildingRentalDetail.deleteMany({ where: { adId: id } });
-      } else if (prevCategory === 'property.rental' || prevCategory.startsWith('property.rental.')) {
-        await trx.rentalDetail.deleteMany({ where: { adId: id } });
-      } else if (prevCategory === 'property.for-sale.land' || prevCategory.startsWith('property.for-sale.land.')) {
-        await trx.landSaleDetail.deleteMany({ where: { adId: id } });
-      } else if (prevCategory === 'property.for-sale.building' || prevCategory.startsWith('property.for-sale.building.')) {
-        await trx.buildingSaleDetail.deleteMany({ where: { adId: id } });
-      } else if (prevCategory === 'clothing' || prevCategory.startsWith('clothing.')) {
-        await trx.clothingDetail.deleteMany({ where: { adId: id } });
-      }
-      if (nextCategory.startsWith('property.rental.land.')) {
-        await trx.landRentalDetail.create({ data: { adId: id, attributes: details as any } });
-      } else if (nextCategory.startsWith('property.rental.building.')) {
-        await trx.buildingRentalDetail.create({ data: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'property.rental' || nextCategory.startsWith('property.rental.')) {
-        await trx.rentalDetail.create({ data: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'property.for-sale.land' || nextCategory.startsWith('property.for-sale.land.')) {
-        await trx.landSaleDetail.create({ data: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'property.for-sale.building' || nextCategory.startsWith('property.for-sale.building.')) {
-        await trx.buildingSaleDetail.create({ data: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'clothing' || nextCategory.startsWith('clothing.')) {
-        await trx.clothingDetail.create({ data: { adId: id, attributes: details as any } });
-      }
-    } else if (details) {
-      // If same category and details provided, upsert/update attributes
-      if (nextCategory.startsWith('property.rental.land.')) {
-        await trx.landRentalDetail.upsert({ where: { adId: id }, update: { attributes: details as any }, create: { adId: id, attributes: details as any } });
-      } else if (nextCategory.startsWith('property.rental.building.')) {
-        await trx.buildingRentalDetail.upsert({ where: { adId: id }, update: { attributes: details as any }, create: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'property.rental' || nextCategory.startsWith('property.rental.')) {
-        await trx.rentalDetail.upsert({ where: { adId: id }, update: { attributes: details as any }, create: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'property.for-sale.land' || nextCategory.startsWith('property.for-sale.land.')) {
-        await trx.landSaleDetail.upsert({ where: { adId: id }, update: { attributes: details as any }, create: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'property.for-sale.building' || nextCategory.startsWith('property.for-sale.building.')) {
-        await trx.buildingSaleDetail.upsert({ where: { adId: id }, update: { attributes: details as any }, create: { adId: id, attributes: details as any } });
-      } else if (nextCategory === 'clothing' || nextCategory.startsWith('clothing.')) {
-        await trx.clothingDetail.upsert({ where: { adId: id }, update: { attributes: details as any }, create: { adId: id, attributes: details as any } });
-      }
-    }
+    // Attributes are now embedded; no leaf-table operations
     return updatedAd;
   });
   return NextResponse.json(updated);

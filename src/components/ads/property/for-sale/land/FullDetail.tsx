@@ -29,19 +29,77 @@ export default function FullDetail({ ad }: { ad: Ad }) {
         lat={ad.lat}
         lng={ad.lng}
       />
-      <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-        {details?.type && (<div><span className="text-gray-500">Type:</span> {String(details.type.replace('-', ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}</div>)}
-        {size && size.value && size.unit && (<div><span className="text-gray-500">Size:</span> {size.value} {unitNames[size.unit as keyof typeof unitNames]}</div>)}
-        {typeof details?.pricePerUnit !== 'undefined' && (<div><span className="text-gray-500">Price/Unit:</span> {details.pricePerUnit}</div>)}
-        {details?.usage?.zoning && (<div><span className="text-gray-500">Zoning:</span> {details.usage.zoning}</div>)}
+      <div className="p-2 md:p-4 grid grid-cols-1 gap-2 text-sm text-gray-700">
+        {details?.type && (
+          <div className="flex gap-1">
+            <span>🌱</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Type: </span>
+              <span>{String(details.type.replace('-', ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}</span>
+            </div>
+          </div>
+        )}
+        {size && size.value && size.unit && (
+          <div className="flex gap-1">
+            <span>📏</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Size: </span>
+              <span>{size.value} {unitNames[size.unit as keyof typeof unitNames]}</span>
+            </div>
+          </div>
+        )}
+        {typeof details?.pricePerUnit !== 'undefined' && (
+          <div className="flex gap-1">
+            <span>💰</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Price/Unit: </span>
+              <span>{details.pricePerUnit}</span>
+            </div>
+          </div>
+        )}
+        {details?.usage?.zoning && (
+          <div className="flex gap-1">
+            <span>📋</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Zoning: </span>
+              <span>{details.usage.zoning}</span>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="text-sm text-gray-700 space-y-1">
-        {details?.extras?.developmentPotential && (<div><span className="text-gray-500">Development:</span> {details.extras.developmentPotential}</div>)}
-        {details?.extras?.accessUtilities && (<div><span className="text-gray-500">Access/Utilities:</span> {details.extras.accessUtilities}</div>)}
-        {details?.extras?.topographyAmenities && (<div><span className="text-gray-500">Topography/Amenities:</span> {details.extras.topographyAmenities}</div>)}
+      <div className="px-2 md:px-4 text-sm text-gray-700 space-y-1">
+        {details?.extras?.developmentPotential && (
+          <div className="flex gap-1">
+            <span>🔨</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Development: </span>
+              <span>{details.extras.developmentPotential}</span>
+            </div>
+          </div>
+        )}
+        {details?.extras?.accessUtilities && (
+          <div className="flex gap-1">
+            <span>🔧</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Access/Utilities: </span>
+              <span>{details.extras.accessUtilities}</span>
+            </div>
+          </div>
+        )}
+        {details?.extras?.topographyAmenities && (
+          <div className="flex gap-1">
+            <span>⛰️</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-gray-500">Topography/Amenities: </span>
+              <span>{details.extras.topographyAmenities}</span>
+            </div>
+          </div>
+        )}
         <AdContactInfo contact={details?.extras?.contact as any} />
       </div>
-      <AdListedFooter createdAt={ad.createdAt}/>
+      <div className="p-2 md:p-4 pb-0"> 
+        <AdListedFooter createdAt={ad.createdAt} mode="inline" />
+       </div>
     </>
   );
 }

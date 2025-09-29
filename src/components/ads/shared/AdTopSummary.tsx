@@ -68,7 +68,7 @@ export default function AdTopSummary({
         )}
       </div>
       {description && (
-        <div className="text-gray-700 leading-relaxed">{description}</div>
+        <div className="px-2 md:px-4 text-gray-700 leading-relaxed">{description}</div>
       )}
     </div>
   );

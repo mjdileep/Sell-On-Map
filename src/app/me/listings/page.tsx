@@ -5,7 +5,7 @@ import { useAuthModal } from '@/app/providers';
 import { useSession } from 'next-auth/react';
 import { Edit2, Trash2, Eye, EyeOff, Calendar, MapPin, DollarSign, Plus, Home, TrendingUp, Clock, AlertCircle, BarChart3 } from 'lucide-react';
 import CreateAdSelectorModal from '@/components/ads/CreateAdSelectorModal';
-import { resolveCreateAdModal, resolveDetailModal, resolveEditAdModal } from '@/components/ads/resolver';
+import { resolveCreateAdModal, resolveDetailModal, resolveEditAdModal, resolveMyListingCard } from '@/components/ads/resolver';
 import { formatCurrency } from '@/lib/currencyUtils';
 
 type Ad = {
@@ -230,33 +230,17 @@ export default function MyListingsPage() {
                 <Plus className="w-4 h-4 mr-2" /> Create New Listing
               </button>
             </div>
-            {ads.map((ad, index) => (
+            {ads.map((ad, index) => {
+              const MyCard = resolveMyListingCard(ad.category || 'all');
+              return (
               <div 
                 key={ad.id} 
                 className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-gray-300 transition-all duration-300 transform hover:-translate-y-1 group"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="p-4">
-                  {/* Header - Enhanced */}
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6 gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200">{ad.title}</h3>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-                            <div className="flex items-center text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                              <MapPin className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-                              <span className="truncate text-sm font-medium">{ad.address}</span>
-                            </div>
-                            <div className="flex items-center text-gray-900 bg-green-50 rounded-lg px-3 py-2">
-                              <span className="text-lg font-bold text-green-700">
-                                {formatCurrency(ad.price, (ad as any).currency || 'USD')}{ad.details?.billingPeriod ? `/${ad.details.billingPeriod}` : '/month'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Status badges */}
+                  <div className="flex justify-end mb-4">
                     <div className="flex-shrink-0">
                       {ad.moderationStatus === 'PENDING' ? (
                         <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm bg-amber-100 text-amber-800 border-2 border-amber-200">
@@ -280,10 +264,28 @@ export default function MyListingsPage() {
                     </div>
                   </div>
 
-                  {/* Description */}
-                  <div className="mb-6">
-                    <p className="text-gray-700 leading-relaxed line-clamp-3">{ad.description}</p>
-                  </div>
+                  {/* Category-specific card (fallback to generic header if not found) */}
+                  {MyCard ? (
+                    <MyCard ad={ad as any} />
+                  ) : (
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200">{ad.title}</h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                          <div className="flex items-center text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                            <MapPin className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
+                            <span className="truncate text-sm font-medium">{ad.address}</span>
+                          </div>
+                          <div className="flex items-center text-gray-900 bg-green-50 rounded-lg px-3 py-2">
+                            <span className="text-lg font-bold text-green-700">
+                              {formatCurrency(ad.price, (ad as any).currency || 'USD')}{ad.details?.billingPeriod ? `/${ad.details.billingPeriod}` : '/month'}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed line-clamp-3 mt-3">{ad.description}</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Metadata - Enhanced */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 mb-6 p-4 bg-gray-50 rounded-lg">
@@ -381,7 +383,7 @@ export default function MyListingsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );})}
 
             {/* Pagination - Enhanced */}
             {pageCount > 1 && (

@@ -84,6 +84,7 @@ model Ad {
   lng         Float    @db.DoublePrecision
   category    String   // e.g. "property.rental", "property.sale.land", "clothing"
   photos      String[]
+  attributes  Json?
 
   moderationStatus AdModerationStatus @default(PENDING)
   rejectReason     String?
@@ -96,85 +97,11 @@ model Ad {
   userId String
   user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // One-to-one detail relations (optional depending on category)
-  rentalDetail        RentalDetail?
-  landRentalDetail    LandRentalDetail?
-  buildingRentalDetail BuildingRentalDetail?
-  landSaleDetail      LandSaleDetail?
-  buildingSaleDetail  BuildingSaleDetail?
-  clothingDetail      ClothingDetail?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([category, isActive])
   @@index([moderationStatus, isActive])
   @@index([lat, lng])
-}
-
-
-/// Leaf detail tables for category-specific attributes
-model RentalDetail {
-  id    String @id @default(cuid())
-  adId  String @unique
-  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-  // Future rental-specific fields can be added here (e.g., bedrooms, bathrooms, furnished)
-  attributes Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model LandRentalDetail {
-  id    String @id @default(cuid())
-  adId  String @unique
-  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-  attributes Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model BuildingRentalDetail {
-  id    String @id @default(cuid())
-  adId  String @unique
-  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-  attributes Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model LandSaleDetail {
-  id    String @id @default(cuid())
-  adId  String @unique
-  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-  // Future land-specific fields can be added here (e.g., area, zoning)
-  attributes Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model BuildingSaleDetail {
-  id    String @id @default(cuid())
-  adId  String @unique
-  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-  // Future building-specific fields (e.g., floors, sq ft)
-  attributes Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model ClothingDetail {
-  id    String @id @default(cuid())
-  adId  String @unique
-  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
-  // Future clothing-specific fields (e.g., size, gender, material)
-  attributes Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 

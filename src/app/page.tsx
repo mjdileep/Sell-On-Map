@@ -33,7 +33,7 @@ export default function Marketplace() {
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
-  const [center, setCenter] = useState<[number, number]>([6.9271, 79.8612]);
+  const [center, setCenter] = useState<[number, number]>([0, 0]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [bounds, setBounds] = useState<{ sw: [number, number]; ne: [number, number] } | null>(null);
   const [targetBounds, setTargetBounds] = useState<{ south: number; west: number; north: number; east: number } | null>(null);
@@ -44,12 +44,12 @@ export default function Marketplace() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createPickerOpen, setCreatePickerOpen] = useState(false);
   const [zoom, setZoom] = useState(fallbackZoom);
-  const lastFetchCenterRef = useRef<[number, number] | null>(null);
   const lastFetchCategoryRef = useRef<CategoryKey | null>(null);
   const debounceRef = useRef<number | null>(null);
-  const FETCH_DISTANCE_THRESHOLD_METERS = 300;
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
   const fetchControllerRef = useRef<AbortController | null>(null);
+  const firstLoadRef = useRef(true);
+  const hadGeoSuccessRef = useRef(false);
   // Wrapped usage of useSearchParams in Suspense below via SearchParamSync
 
   function SearchParamSync() {
@@ -94,22 +94,67 @@ export default function Marketplace() {
   useEffect(() => {
     async function fallbackToCountryCenter() {
       if (!country || country === 'Unknown') return;
+      // Try cached bounds first
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(country)}&limit=1`, {
-          headers: {
-            "Accept": "application/json",
-            "User-Agent": "sellonmap.com config-fallback",
-          },
-        });
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const { lat, lon } = data[0];
-          const clat = parseFloat(lat);
-          const clon = parseFloat(lon);
-          if (Number.isFinite(clat) && Number.isFinite(clon)) {
-            setCenter([clat, clon]);
+        const storageKey = `som_country_bounds_${country}`;
+        const cached = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+        if (cached) {
+          const parsed = JSON.parse(cached) as { south: number; west: number; north: number; east: number };
+          if (
+            parsed &&
+            typeof parsed.south === 'number' &&
+            typeof parsed.north === 'number' &&
+            typeof parsed.west === 'number' &&
+            typeof parsed.east === 'number'
+          ) {
+            const midLat = (parsed.south + parsed.north) / 2;
+            const midLng = (parsed.west + parsed.east) / 2;
+            setCenter([midLat, midLng]);
             setZoom(fallbackZoom);
+            setTargetBounds(parsed);
+            setBounds({ sw: [parsed.south, parsed.west], ne: [parsed.north, parsed.east] });
+            return;
           }
+        }
+      } catch { /* ignore */ }
+
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(country)}&limit=1&addressdetails=0&polygon_geojson=0`,
+          {
+            headers: {
+              "Accept": "application/json",
+              "User-Agent": "sellonmap.com config-fallback",
+            },
+          }
+        );
+        const data: Array<{ lat?: string; lon?: string; boundingbox?: [string, string, string, string] }> = await res.json();
+        const bbox = data?.[0]?.boundingbox;
+        if (Array.isArray(bbox) && bbox.length === 4) {
+          const parsed = {
+            south: parseFloat(bbox[0] as string),
+            north: parseFloat(bbox[1] as string),
+            west: parseFloat(bbox[2] as string),
+            east: parseFloat(bbox[3] as string),
+          } as { south: number; west: number; north: number; east: number };
+          const midLat = (parsed.south + parsed.north) / 2;
+          const midLng = (parsed.west + parsed.east) / 2;
+          setCenter([midLat, midLng]);
+          setZoom(fallbackZoom);
+          setTargetBounds(parsed);
+          setBounds({ sw: [parsed.south, parsed.west], ne: [parsed.north, parsed.east] });
+          try { localStorage.setItem(`som_country_bounds_${country}`, JSON.stringify(parsed)); } catch {}
+          return;
+        }
+        const { lat, lon } = data?.[0] || {};
+        const clat = parseFloat(lat || '0');
+        const clon = parseFloat(lon || '0');
+        if (Number.isFinite(clat) && Number.isFinite(clon)) {
+          setCenter([clat, clon]);
+          setZoom(fallbackZoom);
+          const tb = boundsFromCenterRadiusMeters(clat, clon, 500000);
+          setTargetBounds(tb);
+          setBounds({ sw: [tb.south, tb.west], ne: [tb.north, tb.east] });
         }
       } catch {
         /* ignore */
@@ -123,6 +168,12 @@ export default function Marketplace() {
           setCenter([latitude, longitude]);
           setUserLocation([latitude, longitude]);
           setZoom(13);
+          try {
+            const tb = boundsFromCenterRadiusMeters(latitude, longitude, 10000);
+            setTargetBounds(tb);
+            setBounds({ sw: [tb.south, tb.west], ne: [tb.north, tb.east] });
+          } catch {}
+          hadGeoSuccessRef.current = true;
         },
         (err) => {
           console.log('geolocation error', err);
@@ -200,54 +251,51 @@ export default function Marketplace() {
   }
 
   useEffect(() => {
+    if (!bounds) return;
+    // First fetch should happen immediately without debounce
+    if (!lastBoundsRef.current) {
+      fetchListingsByBounds(bounds);
+      lastBoundsRef.current = bounds;
+      lastFetchCategoryRef.current = activeCategory;
+      return;
+    }
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
     debounceRef.current = window.setTimeout(() => {
       const categoryChanged = lastFetchCategoryRef.current !== activeCategory;
-      if (bounds) {
-        const prev = lastBoundsRef.current;
-        let changedByViewport = true;
-        if (prev) {
-          const currHeight = Math.abs(bounds.ne[0] - bounds.sw[0]);
-          const currWidth = Math.abs(bounds.ne[1] - bounds.sw[1]);
-          const prevHeight = Math.abs(prev.ne[0] - prev.sw[0]);
-          const prevWidth = Math.abs(prev.ne[1] - prev.sw[1]);
-          const eps = 1e-9;
-          const latShift = Math.max(
-            Math.abs(prev.sw[0] - bounds.sw[0]),
-            Math.abs(prev.ne[0] - bounds.ne[0])
-          ) / (currHeight || eps);
-          const lngShift = Math.max(
-            Math.abs(prev.sw[1] - bounds.sw[1]),
-            Math.abs(prev.ne[1] - bounds.ne[1])
-          ) / (currWidth || eps);
-          const heightChange = prevHeight > 0 ? Math.abs(currHeight - prevHeight) / prevHeight : 1;
-          const widthChange = prevWidth > 0 ? Math.abs(currWidth - prevWidth) / prevWidth : 1;
-          changedByViewport = Math.max(latShift, lngShift, heightChange, widthChange) >= 0.10;
-        }
-        if (categoryChanged || changedByViewport) {
-          fetchListingsByBounds(bounds);
-          lastBoundsRef.current = bounds;
-          lastFetchCategoryRef.current = activeCategory;
-          lastFetchCenterRef.current = center;
-        }
-      } else {
-        const last = lastFetchCenterRef.current;
-        const distance = last ? haversineMeters(last[0], last[1], center[0], center[1]) : Infinity;
-        if (categoryChanged || distance > FETCH_DISTANCE_THRESHOLD_METERS) {
-          fetchListings(center[0], center[1], 50);
-          lastFetchCenterRef.current = center;
-          lastFetchCategoryRef.current = activeCategory;
-        }
+      const prev = lastBoundsRef.current;
+      let changedByViewport = true;
+      if (prev) {
+        const currHeight = Math.abs(bounds.ne[0] - bounds.sw[0]);
+        const currWidth = Math.abs(bounds.ne[1] - bounds.sw[1]);
+        const prevHeight = Math.abs(prev.ne[0] - prev.sw[0]);
+        const prevWidth = Math.abs(prev.ne[1] - prev.sw[1]);
+        const eps = 1e-9;
+        const latShift = Math.max(
+          Math.abs(prev.sw[0] - bounds.sw[0]),
+          Math.abs(prev.ne[0] - bounds.ne[0])
+        ) / (currHeight || eps);
+        const lngShift = Math.max(
+          Math.abs(prev.sw[1] - bounds.sw[1]),
+          Math.abs(prev.ne[1] - bounds.ne[1])
+        ) / (currWidth || eps);
+        const heightChange = prevHeight > 0 ? Math.abs(currHeight - prevHeight) / prevHeight : 1;
+        const widthChange = prevWidth > 0 ? Math.abs(currWidth - prevWidth) / prevWidth : 1;
+        changedByViewport = Math.max(latShift, lngShift, heightChange, widthChange) >= 0.10;
       }
-    }, 400);
+      if (categoryChanged || changedByViewport) {
+        fetchListingsByBounds(bounds);
+        lastBoundsRef.current = bounds;
+        lastFetchCategoryRef.current = activeCategory;
+      }
+    }, 600);
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [center[0], center[1], activeCategory, bounds]);
+  }, [bounds, activeCategory]);
 
   function fetchParamsFromBounds(b: { sw: [number, number]; ne: [number, number] }): URLSearchParams {
     const params = new URLSearchParams();
@@ -258,47 +306,23 @@ export default function Marketplace() {
     return params;
   }
 
-  async function fetchListings(lat?: number, lng?: number, radius?: number) {
-    setIsFetching(true);
-    try {
-      fetchControllerRef.current?.abort();
-      const controller = new AbortController();
-      fetchControllerRef.current = controller;
-      const params = new URLSearchParams();
-      if (lat && lng && radius) {
-        params.append("lat", String(lat));
-        params.append("lng", String(lng));
-        params.append("radius", String(radius));
-      }
-      const filtered = Boolean(lat && lng && radius);
-      params.append('category', activeCategory);
-      // Pass viewport size so server can choose K full markers
-      try {
-        const vw = Math.max(320, Math.round((window as any).innerWidth || 0));
-        const vh = Math.max(320, Math.round((window as any).innerHeight || 0));
-        params.append('vw', String(vw));
-        params.append('vh', String(vh));
-      } catch {}
-      const res = await fetch(`/api/ads?${params.toString()}`, { signal: controller.signal });
-      const data = await res.json();
-      if (filtered && Array.isArray(data) && data.length === 0) {
-        const resAll = await fetch(`/api/ads?category=${encodeURIComponent(activeCategory)}`, { signal: controller.signal });
-        const all = await resAll.json();
-        setRentals(all);
-      } else {
-        setRentals(data);
-      }
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        return;
-      }
-    } finally {
-      setTimeout(() => {
-        setIsFetching(false);
-        setInitialLoading(false);
-      }, 1000);
+  function boundsFromPoints(points: Array<{ lat: number; lng: number } | [number, number]>): { south: number; west: number; north: number; east: number } | null {
+    if (!Array.isArray(points) || points.length === 0) return null;
+    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+    for (const p of points) {
+      const plat = Array.isArray(p) ? p[0] : p.lat;
+      const plng = Array.isArray(p) ? p[1] : p.lng;
+      if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+      if (plat < minLat) minLat = plat;
+      if (plat > maxLat) maxLat = plat;
+      if (plng < minLng) minLng = plng;
+      if (plng > maxLng) maxLng = plng;
     }
+    if (!Number.isFinite(minLat) || !Number.isFinite(minLng) || !Number.isFinite(maxLat) || !Number.isFinite(maxLng)) return null;
+    return { south: minLat, west: minLng, north: maxLat, east: maxLng };
   }
+
+  
 
   async function fetchListingsByBounds(b: { sw: [number, number]; ne: [number, number] }) {
     setIsFetching(true);
@@ -318,6 +342,35 @@ export default function Marketplace() {
       const res = await fetch(`/api/ads?${params.toString()}`, { signal: controller.signal });
       const data = await res.json();
       setRentals(data);
+      // First load fitting logic
+      if (firstLoadRef.current) {
+        if (hadGeoSuccessRef.current && userLocation) {
+          const points: Array<[number, number]> = [[userLocation[0], userLocation[1]]];
+          if (Array.isArray(data) && data.length > 0) {
+            for (const r of data as any[]) {
+              if (Number.isFinite(r?.lat) && Number.isFinite(r?.lng)) points.push([r.lat, r.lng]);
+            }
+          }
+          let fitB = boundsFromPoints(points);
+          if (!fitB) {
+            fitB = boundsFromCenterRadiusMeters(userLocation[0], userLocation[1], 10000);
+          }
+          if (fitB) {
+            setTargetBounds(fitB);
+            setTargetFitOptions({ padding: 60, maxZoom: 14, duration: 600 });
+          }
+        } else {
+          if (Array.isArray(data) && data.length > 0) {
+            const points = (data as any[]).map((r) => ({ lat: r.lat, lng: r.lng }));
+            const fitB = boundsFromPoints(points);
+            if (fitB) {
+              setTargetBounds(fitB);
+              setTargetFitOptions({ padding: 60, maxZoom: 12, duration: 700 });
+            }
+          }
+        }
+        firstLoadRef.current = false;
+      }
     } catch (err: any) {
       if (err?.name === 'AbortError') {
         return;
@@ -326,17 +379,6 @@ export default function Marketplace() {
       setIsFetching(false);
       setInitialLoading(false);
     }
-  }
-
-  if (initialLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto text-blue-600" />
-          <p className="mt-4 text-gray-600">Loading listings on the map...</p>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -357,6 +399,15 @@ export default function Marketplace() {
         style={{ height: '100vh', width: '100vw' }} 
       />
 
+      {initialLoading && (
+        <div className="absolute inset-0 z-[1005] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto text-blue-600" />
+            <p className="mt-4 text-gray-600">Loading listings on the map...</p>
+          </div>
+        </div>
+      )}
+
       <div className="hidden ml-12 lg:flex absolute top-4 left-4 z-[1002] max-w-[95vw] gap-3 items-start">
         <div className="shadow-lg rounded-lg w-[380px]">
           <MapSearch onSelect={(lat, lon, meta) => {
@@ -364,8 +415,9 @@ export default function Marketplace() {
             const radius = fallbackRadiusForKindMeters(meta?.kind);
             const b = meta?.bounds || boundsFromCenterRadiusMeters(lat, lon, radius);
             setTargetBounds(b);
+            setBounds({ sw: [b.south, b.west], ne: [b.north, b.east] });
             setTargetFitOptions(fitOptionsForKind(meta?.kind));
-          }} onLocate={(lat, lon) => { setUserLocation([lat, lon]); setCenter([lat, lon]); setTargetBounds(boundsFromCenterRadiusMeters(lat, lon, 8000)); }} provider="google" />
+          }} onLocate={(lat, lon) => { setUserLocation([lat, lon]); setCenter([lat, lon]); const b = boundsFromCenterRadiusMeters(lat, lon, 8000); setTargetBounds(b); setBounds({ sw: [b.south, b.west], ne: [b.north, b.east] }); }} provider="google" />
         </div>
         <div className="max-w-[50vw] overflow-x-auto mt-0.5">
           <CategoryTabs active={activeCategory} onChange={setActiveCategory} />
@@ -379,8 +431,9 @@ export default function Marketplace() {
             const radius = fallbackRadiusForKindMeters(meta?.kind);
             const b = meta?.bounds || boundsFromCenterRadiusMeters(lat, lon, radius);
             setTargetBounds(b);
+            setBounds({ sw: [b.south, b.west], ne: [b.north, b.east] });
             setTargetFitOptions(fitOptionsForKind(meta?.kind));
-          }} onLocate={(lat, lon) => { setUserLocation([lat, lon]); setCenter([lat, lon]); setTargetBounds(boundsFromCenterRadiusMeters(lat, lon, 8000)); }} />
+          }} onLocate={(lat, lon) => { setUserLocation([lat, lon]); setCenter([lat, lon]); const b = boundsFromCenterRadiusMeters(lat, lon, 8000); setTargetBounds(b); setBounds({ sw: [b.south, b.west], ne: [b.north, b.east] }); }} />
         </div>
       </div>
 
@@ -432,7 +485,7 @@ export default function Marketplace() {
         const CreateModal = resolveCreateAdModal(activeCategory);
         if (!CreateModal) return null;
         return (
-          <CreateModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => fetchListings()} category={activeCategory} />
+          <CreateModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => { const b = bounds || lastBoundsRef.current; if (b) { fetchListingsByBounds(b); } }} category={activeCategory} />
         );
       })()}
     </div>

@@ -44,13 +44,6 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: 'desc' },
       take: 500,
-      include: {
-        rentalDetail: true,
-        landRentalDetail: true,
-        buildingRentalDetail: true,
-        landSaleDetail: true,
-        buildingSaleDetail: true,
-      },
     } as any);
   } else if (lat && lng && radius) {
     // Approximate by bounding box for simplicity; can be replaced with PostGIS later
@@ -65,26 +58,12 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: 'desc' },
       take: 500,
-      include: {
-        rentalDetail: true,
-        landRentalDetail: true,
-        buildingRentalDetail: true,
-        landSaleDetail: true,
-        buildingSaleDetail: true,
-      },
     } as any);
   } else {
     ads = await prisma.ad.findMany({
       where: whereBase,
       orderBy: { createdAt: 'desc' },
       take: 500,
-      include: {
-        rentalDetail: true,
-        landRentalDetail: true,
-        buildingRentalDetail: true,
-        landSaleDetail: true,
-        buildingSaleDetail: true,
-      },
     } as any);
   }
   // Determine how many full markers (K) to show based on viewport size or explicit k
@@ -105,13 +84,7 @@ export async function GET(request: Request) {
   // Attach unified details JSON onto each ad
   let adsWithVariant = (ads as any[]).map((a) => ({
     ...a,
-    details:
-      a.landRentalDetail?.attributes ||
-      a.buildingRentalDetail?.attributes ||
-      a.rentalDetail?.attributes ||
-      a.landSaleDetail?.attributes ||
-      a.buildingSaleDetail?.attributes ||
-      undefined,
+    details: (a as any).attributes || undefined,
   }));
   if (k > 0 && adsWithVariant.length > 0) {
     const selected = new Set<number>();
@@ -124,7 +97,7 @@ export async function GET(request: Request) {
     }));
   }
   // Strip raw relations before returning
-  const sanitized = adsWithVariant.map(({ rentalDetail, landRentalDetail, buildingRentalDetail, landSaleDetail, buildingSaleDetail, ...rest }) => rest);
+  const sanitized = adsWithVariant.map(({ attributes, ...rest }) => rest);
   return NextResponse.json(sanitized);
 }
 
@@ -169,6 +142,9 @@ function validateAdPayload(payload: any): ValidationResult {
     requireDetail('type', 'Type');
     requireDetail('floorArea.value', 'Floor area value');
     requireDetail('floorArea.unit', 'Floor area unit');
+    if (category.includes('property.rental.building.residential.shared')) {
+      requireDetail('rooms.beds', 'Beds (vacant)');
+    }
   } else if (category.startsWith('property.for-sale.building')) {
     requireDetail('type', 'Type');
     requireDetail('floorArea.value', 'Floor area value');
@@ -203,43 +179,25 @@ export async function POST(request: Request) {
   const now = new Date();
   const expiresAt = activateNow ? new Date(now.getTime() + activeDays * 24 * 60 * 60 * 1000) : null as any;
 
-  const created = await prisma.$transaction(async (tx) => {
-    const trx = tx as any;
-    const ad = await tx.ad.create({
-      data: {
-        title,
-        description,
-        price: Math.round(Number(price) || 0),
-        address,
-        currency: String(currency || 'USD'),
-        lat: Number(lat),
-        lng: Number(lng),
-        category: String(category || 'property.rental'),
-        photos: Array.isArray(photos) ? photos : [],
-        moderationStatus: 'PENDING' as any,
-        isActive: false,
-        activatedAt: null,
-        expiresAt: expiresAt,
-        deactivatedAt: now,
-        userId,
-      } as any,
-    });
-    const cat: string = ad.category;
-    const attrs = details && typeof details === 'object' ? details : undefined;
-    if (cat.startsWith('property.rental.land.')) {
-      await trx.landRentalDetail.create({ data: { adId: ad.id, attributes: attrs as any } });
-    } else if (cat.startsWith('property.rental.building.')) {
-      await trx.buildingRentalDetail.create({ data: { adId: ad.id, attributes: attrs as any } });
-    } else if (cat === 'property.rental' || cat.startsWith('property.rental.')) {
-      await trx.rentalDetail.create({ data: { adId: ad.id, attributes: attrs as any } });
-    } else if (cat === 'property.for-sale.land' || cat.startsWith('property.for-sale.land.')) {
-      await trx.landSaleDetail.create({ data: { adId: ad.id, attributes: attrs as any } });
-    } else if (cat === 'property.for-sale.building' || cat.startsWith('property.for-sale.building.')) {
-      await trx.buildingSaleDetail.create({ data: { adId: ad.id, attributes: attrs as any } });
-    } else if (cat === 'clothing' || cat.startsWith('clothing.')) {
-      await trx.clothingDetail.create({ data: { adId: ad.id, attributes: attrs as any } });
-    }
-    return ad;
+  const created = await prisma.ad.create({
+    data: {
+      title,
+      description,
+      price: Math.round(Number(price) || 0),
+      address,
+      currency: String(currency || 'USD'),
+      lat: Number(lat),
+      lng: Number(lng),
+      category: String(category || 'property.rental'),
+      photos: Array.isArray(photos) ? photos : [],
+      moderationStatus: 'PENDING' as any,
+      isActive: false,
+      activatedAt: null,
+      expiresAt: expiresAt,
+      deactivatedAt: now,
+      userId,
+      attributes: details && typeof details === 'object' ? details : undefined,
+    } as any,
   });
   return NextResponse.json(created, { status: 201 });
 }

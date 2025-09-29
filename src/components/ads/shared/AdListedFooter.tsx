@@ -29,7 +29,7 @@ export default function AdListedFooter({ createdAt, categoryLabel, linkHref, lin
   return (
     <>
       {showInline && (
-        <div className="text-xs text-gray-400">Listed: {formatUtcTimestamp(createdAt)}</div>
+        <div className="text-xs text-gray-400 pb-1">Listed: {formatUtcTimestamp(createdAt)}</div>
       )}
       {showFooter && (
         <div className="p-4 border-t border-gray-200 flex items-center justify-between gap-2">

@@ -54,7 +54,7 @@ export default async function AdDetailPage(props: NextPageProps) {
   const id = Array.isArray(rawId) ? (rawId[0] || '') : (rawId || '');
   const slug = Array.isArray(rawSlug) ? (rawSlug[0] || '') : (rawSlug || '');
   if (!id) return notFound();
-  const ad = await prisma.ad.findUnique({ where: { id }, include: { rentalDetail: true, landRentalDetail: true, buildingRentalDetail: true, landSaleDetail: true, buildingSaleDetail: true } } as any);
+  const ad = await prisma.ad.findUnique({ where: { id } } as any);
   if (!ad) return notFound();
   // Only allow public view if approved and active
   if (!(ad as any).isActive || (ad as any).moderationStatus !== 'APPROVED') {
@@ -90,7 +90,7 @@ export default async function AdDetailPage(props: NextPageProps) {
             type="application/ld+json"
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
           />
-          <FullDetailRenderer ad={ad as any} />
+          <FullDetailRenderer ad={{ ...(ad as any), details: (ad as any).attributes || undefined }} />
         </div>
       </main>
     </div>

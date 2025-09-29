@@ -33,6 +33,12 @@ import RentalBuildingListPreview from "@/components/ads/property/rental/building
 import LandListPreview from "@/components/ads/property/for-sale/land/ListPreview";
 import BuildingListPreview from "@/components/ads/property/for-sale/building/ListPreview";
 
+// My Listings cards
+import RentalLandMyListingCard from "@/components/ads/property/rental/land/MyListingCard";
+import RentalBuildingMyListingCard from "@/components/ads/property/rental/building/MyListingCard";
+import LandMyListingCard from "@/components/ads/property/for-sale/land/MyListingCard";
+import BuildingMyListingCard from "@/components/ads/property/for-sale/building/MyListingCard";
+
 // Markers
 import { createSaleLandMarkerElement, createSaleLandResidentialMarkerElement, createSaleLandCommercialMarkerElement, createSaleLandIndustrialMarkerElement, createSaleLandAgriculturalMarkerElement } from "@/components/ads/property/for-sale/land/Marker";
 import { createSaleBuildingMarkerElement, createSaleBuildingResidentialSingleFamilyMarkerElement, createSaleBuildingResidentialMultiFamilyMarkerElement, createSaleBuildingResidentialCondoTownhouseMarkerElement, createSaleBuildingCommercialOfficeMarkerElement, createSaleBuildingCommercialRetailMarkerElement, createSaleBuildingIndustrialWarehouseMarkerElement, createSaleBuildingIndustrialManufacturingMarkerElement, createSaleBuildingMixedUseMarkerElement, createSaleBuildingHospitalityMarkerElement } from "@/components/ads/property/for-sale/building/Marker";
@@ -44,6 +50,7 @@ export type CategoryKey = string;
 export type ResolvedCreateModal = ComponentType<{ open: boolean; onClose: () => void; onCreated?: () => void; category?: string }> | null;
 export type ResolvedDetailModal = ComponentType<{ open: boolean; ad: Ad | null; onClose: () => void }> | null;
 export type ResolvedListPreview = ComponentType<any> | null;
+export type ResolvedMyListingCard = ComponentType<{ ad: Ad }> | null;
 export type ResolvedEditModal = ComponentType<{ open: boolean; onClose: () => void; adId: string; onSaved?: () => void }> | null;
 export type ResolvedFullDetail = ComponentType<{ ad: Ad }> | null;
 
@@ -127,6 +134,13 @@ const listPreviewRegistry: Record<string, ResolvedListPreview> = {
   "property.for-sale.building": BuildingListPreview as any,
 };
 
+const myListingCardRegistry: Record<string, ResolvedMyListingCard> = {
+  "property.rental.land": RentalLandMyListingCard,
+  "property.rental.building": RentalBuildingMyListingCard,
+  "property.for-sale.land": LandMyListingCard,
+  "property.for-sale.building": BuildingMyListingCard,
+};
+
 const markerRegistry: Record<string, MarkerFactory> = {
   "property.for-sale.land": createSaleLandMarkerElement,
   "property.for-sale.building": createSaleBuildingMarkerElement,
@@ -138,11 +152,13 @@ const markerRegistry: Record<string, MarkerFactory> = {
 
   // Rental building leaves
   "property.rental.building.residential": createRentalBuildingResidentialMarkerElement,
+  // Broader fallbacks for new subtypes
+  "property.rental.building.commercial": createRentalBuildingCommercialOfficeMarkerElement,
   "property.rental.building.commercial.office": createRentalBuildingCommercialOfficeMarkerElement,
   "property.rental.building.commercial.retail": createRentalBuildingCommercialRetailMarkerElement,
+  "property.rental.building.industrial": createRentalBuildingIndustrialManufacturingMarkerElement,
   "property.rental.building.industrial.warehouse": createRentalBuildingIndustrialWarehouseMarkerElement,
   "property.rental.building.industrial.manufacturing": createRentalBuildingIndustrialManufacturingMarkerElement,
-  "property.rental.building.mixed-use": createRentalBuildingMixedUseMarkerElement,
   "property.rental.building.hospitality": createRentalBuildingHospitalityMarkerElement,
 
   // Sale land leaves
@@ -208,6 +224,16 @@ export function resolveListPreview(category: CategoryKey): ResolvedListPreview {
   const prefixes = buildDescendingPrefixes(cat);
   for (let i = prefixes.length - 1; i >= 0; i--) {
     const comp = listPreviewRegistry[prefixes[i]];
+    if (comp) return comp;
+  }
+  return null;
+}
+
+export function resolveMyListingCard(category: CategoryKey): ResolvedMyListingCard {
+  const cat = normalizeCategory(category);
+  const prefixes = buildDescendingPrefixes(cat);
+  for (let i = prefixes.length - 1; i >= 0; i--) {
+    const comp = myListingCardRegistry[prefixes[i]];
     if (comp) return comp;
   }
   return null;

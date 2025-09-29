@@ -27,28 +27,13 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: {
-        rentalDetail: true,
-        landRentalDetail: true,
-        buildingRentalDetail: true,
-        landSaleDetail: true,
-        buildingSaleDetail: true,
-      },
     } as any),
   ]);
 
   // Attach unified details JSON onto each ad and strip raw relations
   let adsWithDetails = (ads as any[]).map((ad) => {
-    const details =
-      ad.landRentalDetail?.attributes ||
-      ad.buildingRentalDetail?.attributes ||
-      ad.rentalDetail?.attributes ||
-      ad.landSaleDetail?.attributes ||
-      ad.buildingSaleDetail?.attributes ||
-      undefined;
-
-    const { rentalDetail, landRentalDetail, buildingRentalDetail, landSaleDetail, buildingSaleDetail, ...rest } = ad;
-    return { ...rest, details };
+    const { attributes, ...rest } = ad as any;
+    return { ...rest, details: attributes || undefined };
   });
 
   if (includeMeta) {

@@ -211,7 +211,7 @@ export default function MapTilerMap({
         markerPopupsRef.current.forEach(p => p.remove());
         markerPopupsRef.current.clear();
 
-        const container = createMarkerPopupContent(rental as any, markerVariant);
+        const container = createMarkerPopupContent(rental as any, markerVariant, rental.title);
 
         const popup = new maplibregl.Popup({ offset: 12, closeButton: false, closeOnClick: false, className: 'hover-preview' })
           .setLngLat([rental.lng, rental.lat])
@@ -318,6 +318,12 @@ export default function MapTilerMap({
           suppressEventsRef.current = false;
           suppressCenterPropRef.current = false;
           lastFitTargetRef.current = key;
+          try {
+            if (onBoundsBoxChange) {
+              const bb = map.getBounds();
+              onBoundsBoxChange({ sw: [bb.getSouth(), bb.getWest()], ne: [bb.getNorth(), bb.getEast()] });
+            }
+          } catch {}
         }, 50);
         map.off('idle', clear);
       };

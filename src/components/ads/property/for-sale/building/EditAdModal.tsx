@@ -40,7 +40,7 @@ export default function BuildingSaleEditAdModal({ open, onClose, adId, onSaved }
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [address, setAddress] = useState("");
-  const [location, setLocation] = useState({ lat: 6.9271, lng: 79.8612 });
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [currency, setCurrency] = useState<string>(defaultCurrency || 'USD');
   const [category, setCategory] = useState<string>("");
   const type = useMemo(() => deriveType(category), [category]);
@@ -86,7 +86,7 @@ export default function BuildingSaleEditAdModal({ open, onClose, adId, onSaved }
         setPrice(String(ad.price ?? ''));
         setCurrency(String(ad.currency || defaultCurrency || 'USD'));
         setAddress(String(ad.address || ''));
-        setLocation({ lat: Number(ad.lat || 6.9271), lng: Number(ad.lng || 79.8612) });
+        setLocation(ad.lat && ad.lng ? { lat: Number(ad.lat), lng: Number(ad.lng) } : null);
         setCategory(String(ad.category || ''));
         setPhotos(Array.isArray(ad.photos) ? ad.photos : []);
 
@@ -116,6 +116,13 @@ export default function BuildingSaleEditAdModal({ open, onClose, adId, onSaved }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
+
+    // Validate location is selected
+    if (!address.trim() || !location) {
+      alert('Please enter an address and select a location on the map');
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await fetch(`/api/ads/${adId}`, {

@@ -11,7 +11,11 @@ function mk(color: string, text?: string): HTMLDivElement {
   return el as HTMLDivElement;
 }
 
-function label(ad: Ad): string { return `${formatCurrency(ad.price, (ad as any).currency || 'USD')}/mo`; }
+function label(ad: Ad): string {
+  const cat = String((ad as any).category || '').toLowerCase();
+  const isShared = cat.includes('property.rental.building.residential.shared');
+  return `${formatCurrency(ad.price, (ad as any).currency || 'USD')}${isShared ? '/pp/mo' : '/mo'}`;
+}
 export function createRentalBuildingResidentialMarkerElement(ad: Ad, variant: 'full' | 'dot'): HTMLDivElement { return mk('#2563eb', variant === 'full' ? label(ad) : undefined); }
 export function createRentalBuildingCommercialOfficeMarkerElement(ad: Ad, variant: 'full' | 'dot'): HTMLDivElement { return mk('#1d4ed8', variant === 'full' ? label(ad) : undefined); }
 export function createRentalBuildingCommercialRetailMarkerElement(ad: Ad, variant: 'full' | 'dot'): HTMLDivElement { return mk('#1e40af', variant === 'full' ? label(ad) : undefined); }

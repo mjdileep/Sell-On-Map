@@ -50,22 +50,23 @@ function metricParts(ad: Ad): string[] {
     const ls = details?.landSize;
 
     if (type === "residential") {
-      if (rooms?.bedrooms) parts.push(`${rooms.bedrooms} Bedroom${rooms.bedrooms > 1 ? 's' : ''}`);
-      if (rooms?.bathrooms) parts.push(`${rooms.bathrooms} Bathroom${rooms.bathrooms > 1 ? 's' : ''}`);
+      if (typeof rooms?.beds === 'number' && rooms.beds >= 0) parts.push(`🛏️ ${rooms.beds} bed${rooms.beds !== 1 ? 's' : ''} vacant`);
+      if (rooms?.bedrooms) parts.push(`🛏️ ${rooms.bedrooms} Bedroom${rooms.bedrooms > 1 ? 's' : ''}`);
+      if (rooms?.bathrooms) parts.push(`🚿 ${rooms.bathrooms} Bathroom${rooms.bathrooms > 1 ? 's' : ''}`);
     }
-    if (fa && fa.value && fa.unit) parts.push(`${fa.value} ${unitNames[fa.unit as keyof typeof unitNames] || fa.unit}`);
-    if (structure?.floors) parts.push(`${structure.floors} Floor${structure.floors > 1 ? 's' : ''}`);
-    if (!fa && ls && ls.value && ls.unit) parts.push(`${ls.value} ${unitNames[ls.unit as keyof typeof unitNames] || ls.unit}`);
+    if (fa && fa.value && fa.unit) parts.push(`📐 ${fa.value} ${unitNames[fa.unit as keyof typeof unitNames] || fa.unit}`);
+    if (structure?.floors) parts.push(`🏢 ${structure.floors} Floor${structure.floors > 1 ? 's' : ''}`);
+    if (!fa && ls && ls.value && ls.unit) parts.push(`📏 ${ls.value} ${unitNames[ls.unit as keyof typeof unitNames] || ls.unit}`);
   } else if (isLandCategory(ad.category)) {
     const size = details?.size;
-    if (size && size.value && size.unit) parts.push(`${size.value} ${unitNames[size.unit as keyof typeof unitNames] || size.unit}`);
+    if (size && size.value && size.unit) parts.push(`📏 ${size.value} ${unitNames[size.unit as keyof typeof unitNames] || size.unit}`);
 
     // Add price per perch for sale land if derivable
     if (isSaleCategory(ad.category) && size && size.value && size.unit) {
       try {
         const ppp = pricePerPerch(Number(ad.price), Number(size.value), String(size.unit) as any);
         const cur = (ad as any).currency || 'USD';
-        if (ppp && isFinite(ppp)) parts.push(`${formatCurrency(ppp, cur)}/perch`);
+        if (ppp && isFinite(ppp)) parts.push(`💰 ${formatCurrency(ppp, cur)}/perch`);
       } catch {}
     }
   }
@@ -78,8 +79,18 @@ function priceText(ad: Ad): string {
   const category = String((ad as any).category || '').toLowerCase();
   const isRental = isRentalCategory(category);
   const details: any = (ad as any).details || {};
-  const suffix = isRental ? `/${details?.billingPeriod || 'mo'}` : '';
-  return `${formatCurrency(Number(ad.price), cur)}${suffix}`;
+  const isShared = category.includes('property.rental.building.residential.shared');
+  const suffix = isRental ? (isShared ? '/person/mo' : `/${details?.billingPeriod || 'mo'}`) : '';
+  
+  // Choose appropriate icon based on category
+  let icon = '💰'; // Default money icon
+  if (isRental) {
+    icon = '🏠'; // House icon for rentals
+  } else if (category.includes('for-sale.land')) {
+    icon = '🌱'; // Seedling icon for land sales
+  }
+  
+  return `${icon} ${formatCurrency(Number(ad.price), cur)}${suffix}`;
 }
 
 function priceColorClass(ad: Ad): string {
@@ -89,8 +100,14 @@ function priceColorClass(ad: Ad): string {
   return 'text-indigo-700';
 }
 
-export function createMarkerPopupContent(ad: Ad, markerVariant: 'full' | 'dot' = 'full'): HTMLDivElement {
+export function createMarkerPopupContent(ad: Ad, markerVariant: 'full' | 'dot' = 'full', title?: string | null): HTMLDivElement {
   const container = createEl('div', 'ml-popup p-2 max-w-[280px]');
+
+  // Add title at the top if provided
+  if (title) {
+    const titleEl = createEl('div', 'text-[13px] font-semibold text-gray-800 mb-2 leading-tight', truncate(title, 50));
+    container.appendChild(titleEl);
+  }
 
   const row = createEl('div', 'flex items-start gap-2');
   container.appendChild(row);

@@ -61,6 +61,10 @@ export default function RentalBuildingCreateAdModal({ open, onClose, onCreated, 
   const [leaseType, setLeaseType] = useState<'NNN' | 'Gross' | ''>('');
   const [contactPhone, setContactPhone] = useState("");
   const [contactWhatsapp, setContactWhatsapp] = useState("");
+  const [beds, setBeds] = useState("");
+
+  const isSharedResidential = Boolean((category || '').toLowerCase().includes('property.rental.building.residential.shared'));
+  const isPrivateResidential = Boolean((category || '').toLowerCase().includes('property.rental.building.residential.private'));
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +78,13 @@ export default function RentalBuildingCreateAdModal({ open, onClose, onCreated, 
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    // Validate location is selected
+    if (!address.trim() || !location) {
+      alert('Please enter an address and select a location on the map');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await fetch('/api/ads', {
@@ -85,8 +96,8 @@ export default function RentalBuildingCreateAdModal({ open, onClose, onCreated, 
           price: parseFloat(price),
           currency,
           address,
-          lat: location?.lat || 0,
-          lng: location?.lng || 0,
+          lat: location?.lat,
+          lng: location?.lng,
           category: category || ('property.rental.building.' + type),
           details: {
             type,
@@ -94,7 +105,7 @@ export default function RentalBuildingCreateAdModal({ open, onClose, onCreated, 
             floorArea: { value: Number(floorAreaValue), unit: floorAreaUnit },
             landSize: landSizeValue ? { value: Number(landSizeValue), unit: landSizeUnit } : undefined,
             structure: { floors: floors ? Number(floors) : undefined, buildYear: buildYear ? Number(buildYear) : undefined, condition },
-            rooms: (type === 'residential') ? { bedrooms: bedrooms ? Number(bedrooms) : undefined, bathrooms: bathrooms ? Number(bathrooms) : undefined } : undefined,
+            rooms: (type === 'residential') ? { bedrooms: bedrooms ? Number(bedrooms) : undefined, bathrooms: bathrooms ? Number(bathrooms) : undefined, beds: (isSharedResidential || isPrivateResidential) && beds ? Number(beds) : undefined } : undefined,
             usage: { zoning },
             parking,
             leaseTerms: {
@@ -185,7 +196,7 @@ export default function RentalBuildingCreateAdModal({ open, onClose, onCreated, 
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Rental Price</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{isSharedResidential ? 'Price (per person per month)' : 'Rental Price'}</label>
                       <div className="relative">
                         <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <div className="flex">
@@ -295,6 +306,13 @@ export default function RentalBuildingCreateAdModal({ open, onClose, onCreated, 
                         <div className="relative">
                           <Bath className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                           <input value={bathrooms} onChange={(e) => setBathrooms(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="1" />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{isSharedResidential ? 'Beds available (vacant)' : 'Beds (optional)'}</label>
+                        <div className="relative">
+                          <Bed className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input value={beds} onChange={(e) => setBeds(e.target.value)} type="number" required={isSharedResidential} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={isSharedResidential ? 'Number of vacant beds' : 'Total beds'} />
                         </div>
                       </div>
                     </div>

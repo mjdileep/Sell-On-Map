@@ -76,3 +76,10 @@ What you’ll see:
 - S3 client init line “[s3] init” with region/bucket and whether explicit credentials were used.
 
 If you want, I can deploy now so PM2 log rotation applies and you can toggle debug and test an upload.
+
+
+Category-specific logic only exists:
+In components/ads/**
+In API validation for per-category fields
+In the resolver mapping
+Everything else is free of hard-coded categories.

@@ -206,18 +206,6 @@ export default function ImageSlider({ images, alt }: { images: string[]; alt: st
 					</div>
 				)}
 
-				{/* Full screen toggle button */}
-				{!isFullScreen && (
-					<button 
-						type="button" 
-						onClick={openFullScreen}
-						className="absolute top-2 sm:top-3 left-2 sm:left-3 p-1.5 sm:p-2 rounded-full bg-black/40 hover:bg-black/60 active:bg-black/70 text-white transition-all duration-200 backdrop-blur-sm"
-						aria-label="Open full screen"
-					>
-						<Maximize2 size={14} className="sm:w-4 sm:h-4" />
-					</button>
-				)}
-
 				{/* Close full screen button */}
 				{isFullScreen && (
 					<button 

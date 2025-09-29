@@ -58,9 +58,9 @@ export default function Modal({
         onClick={(e) =>{if (closeOnBackdrop) onClose(); e.stopPropagation()}}
       >
         <div className="bg-white rounded-2xl p-2 md:p-4" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-3 mb-1">
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-            <button aria-label="Close" onClick={onClose} className="p-2 rounded hover:bg-gray-100"><X className="h-5 w-5" /></button>
+            <button aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="h-5 w-5" /></button>
           </div>
         {children}
         </div>

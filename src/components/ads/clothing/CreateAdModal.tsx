@@ -6,6 +6,7 @@ import { useAuthModal } from "@/app/providers";
 import { useRouter } from "next/navigation";
 import ImageUploader from "@/components/ImageUploader";
 import Modal from "@/components/Modal";
+import LocationFields from "@/components/ads/shared/LocationFields";
 
 export interface ClothingCreateAdModalProps {
   open: boolean;
@@ -19,6 +20,8 @@ export default function ClothingCreateAdModal({ open, onClose, onCreated }: Clot
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [address, setAddress] = useState("");
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<'details' | 'images'>('details');
   const [createdAdId, setCreatedAdId] = useState<string | undefined>(undefined);
@@ -36,6 +39,13 @@ export default function ClothingCreateAdModal({ open, onClose, onCreated }: Clot
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    // Validate location is selected
+    if (!address.trim() || !location) {
+      alert('Please enter an address and select a location on the map');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await fetch('/api/ads', {
@@ -45,9 +55,9 @@ export default function ClothingCreateAdModal({ open, onClose, onCreated }: Clot
           title,
           description,
           price: parseFloat(price),
-          address: 'Colombo',
-          lat: 6.9271,
-          lng: 79.8612,
+          address,
+          lat: location.lat,
+          lng: location.lng,
           category: 'clothing',
         }),
       });
@@ -107,6 +117,14 @@ export default function ClothingCreateAdModal({ open, onClose, onCreated }: Clot
                   <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="25" required />
                 </div>
               </div>
+
+              <LocationFields
+                address={address}
+                onAddressChange={setAddress}
+                location={location}
+                onLocationChange={setLocation}
+                placeholder="Enter pickup location"
+              />
               <div className="pt-2">
                 <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition duration-300 flex items-center justify-center disabled:bg-blue-400">
                   {submitting ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : null}

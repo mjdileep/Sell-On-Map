@@ -3,7 +3,7 @@
 export type AreaUnit = 'perch' | 'acre' | 'hect' | 'sqft' | 'sqm';
 
 // Conversion factors to one perch
-// References (common in Sri Lanka):
+// Reference conversions:
 // - 1 acre = 160 perches
 // - 1 hectare ≈ 2.47105381 acres → 2.47105381 * 160 ≈ 395.3686096 perches
 // - 1 perch = 272.25 square feet

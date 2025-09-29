@@ -132,7 +132,8 @@ const categoryTree: CategoryNode = {
           ],
         },
       ],
-    },
+      
+    }
   ],
 };
 

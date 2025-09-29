@@ -27,13 +27,7 @@ function FallbackFullDetail({ ad }: { ad: any }) {
 export default function FullDetailRenderer({ ad }: { ad: any }) {
   const category: string = String(ad?.category || "");
   const details = useMemo(() => {
-    return (ad as any)?.landRentalDetail?.attributes
-      || (ad as any)?.buildingRentalDetail?.attributes
-      || (ad as any)?.rentalDetail?.attributes
-      || (ad as any)?.landSaleDetail?.attributes
-      || (ad as any)?.buildingSaleDetail?.attributes
-      || (ad as any)?.details
-      || {};
+    return (ad as any)?.details || {};
   }, [ad]);
 
   const Comp = resolveFullDetail(category);

@@ -62,6 +62,13 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    // Validate location is selected
+    if (!address.trim() || !location) {
+      alert('Please enter an address and select a location on the map');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await fetch('/api/ads', {
@@ -73,8 +80,8 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
           price: parseFloat(price),
           currency,
           address,
-          lat: location?.lat || 0,
-          lng: location?.lng || 0,
+          lat: location?.lat,
+          lng: location?.lng,
           category: category || ('property.rental.land.' + type),
           details: {
             type,
