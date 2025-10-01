@@ -50,6 +50,11 @@ export function getAdImagesPrefix() {
   return 'ad-images/';
 }
 
+export function getProfileImagesPrefix() {
+  // All profile images will live under this folder in the bucket
+  return 'profile-images/';
+}
+
 export function sanitizeObjectKeyPart(input: string): string {
   return input
     .replace(/[^a-zA-Z0-9/_.-]/g, '-')
@@ -65,6 +70,16 @@ export function buildAdImageKey(opts: { userId: string; adId?: string; filename:
   const file = sanitizeObjectKeyPart(opts.filename);
   const group = String(typeof opts.groupId === 'undefined' ? Date.now() : opts.groupId).replace(/[^0-9]/g, '');
   return `${getAdImagesPrefix()}${user}/${ad}/${group}-${file}`;
+}
+
+export function buildProfileImageKey(opts: { userId: string; filename: string; variant?: 'original' | 'avatar'; width?: number }): string {
+  const user = sanitizeObjectKeyPart(opts.userId);
+  const match = String(opts.filename || '').match(/^(.*?)(\.[^.]+)?$/);
+  const base = sanitizeObjectKeyPart((match?.[1] || 'avatar').replace(/\.+$/, ''));
+  const ext = (match?.[2] || '.avif').replace(/[^a-zA-Z0-9.]/g, '') || '.avif';
+  const variant = opts.variant || 'avatar';
+  const widthSuffix = (typeof opts.width === 'number' && Number.isFinite(opts.width)) ? `-w${opts.width}` : '';
+  return `${getProfileImagesPrefix()}${user}/${base}-${variant}${widthSuffix}${ext}`;
 }
 
 

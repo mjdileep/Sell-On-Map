@@ -153,6 +153,16 @@ function Shell({ children }: { children: React.ReactNode }) {
                       </div>
                       <span className="font-medium">My Listings</span>
                     </Link>
+                    <Link 
+                      href="/me/profile" 
+                      className="flex items-center space-x-3 w-full px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-emerald-50 transition-all duration-200 text-gray-700 hover:text-gray-900 border border-transparent hover:border-blue-100" 
+                      onClick={() => setOpen(false)}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-r from-blue-100 to-emerald-100">
+                        <User className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <span className="font-medium">My Profile</span>
+                    </Link>
                     {user?.isAdmin ? (
                       <Link 
                         href="/admin/moderation" 

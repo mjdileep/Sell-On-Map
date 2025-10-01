@@ -10,6 +10,7 @@ import Modal from "@/components/Modal";
 import LocationFields from "@/components/ads/shared/LocationFields";
 import ContactInfoSection from "@/components/ads/shared/ContactInfoSection";
 import CreateAdImageSection from "@/components/ads/shared/CreateAdImageSection";
+import { getPropertyPlaceholders, PropertyType } from "@/lib/propertyPlaceholders";
 
 export default function RentalLandCreateAdModal({ open, onClose, onCreated, category }: { open: boolean; onClose: () => void; onCreated?: () => void; category?: string }) {
   const { openAuthModal } = useAuthModal();
@@ -49,6 +50,10 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
   const [restrictionsAmenities, setRestrictionsAmenities] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactWhatsapp, setContactWhatsapp] = useState("");
+
+  // Get contextual placeholders based on land type
+  const landRentalTypeKey: PropertyType = (type + '-land-rental') as PropertyType;
+  const placeholders = getPropertyPlaceholders(landRentalTypeKey);
 
   useEffect(() => {
     if (!open) return;
@@ -147,13 +152,13 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                     <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
                     <div className="relative">
                       <Text className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="Commercial land for lease..." required />
+                      <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.title} required />
                     </div>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none" placeholder="Detailed description of your land rental..." required />
+                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none" placeholder={placeholders.description} required />
                   </div>
 
                   {type ? (
@@ -181,7 +186,7 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                         <div className="relative">
                           <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <div className="flex">
-                          <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" className="flex-1 w-full pl-10 pr-2 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="50000" required />
+                          <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" className="flex-1 w-full pl-10 pr-2 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.price} required />
                           <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-20 px-3 py-3 border-l-0 border border-gray-200 rounded-r-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
                             {Object.keys(monetary_units_flags).map((code) => (
                               <option key={code} value={code}>{code}</option>
@@ -208,7 +213,7 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                     onAddressChange={setAddress}
                     location={location}
                     onLocationChange={setLocation}
-                    placeholder="123 Main Street, City"
+                    placeholder={placeholders.address}
                   />
                 </div>
               </div>
@@ -226,7 +231,7 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                       <div className="grid grid-cols-2 gap-3">
                         <div className="relative">
                           <Square className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input value={sizeValue} onChange={(e) => setSizeValue(e.target.value)} type="number" required className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="13.3" />
+                          <input value={sizeValue} onChange={(e) => setSizeValue(e.target.value)} type="number" required className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.landSize} />
                         </div>
                         <div>
                           <select value={sizeUnit} onChange={(e) => setSizeUnit(e.target.value as any)} required className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
@@ -243,7 +248,7 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                       <label className="block text-sm font-medium text-gray-700 mb-2">Zoning/Permitted Use (optional)</label>
                       <div className="relative">
                         <Map className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input value={zoning} onChange={(e) => setZoning(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="C-2 / M-1 / AG-1" />
+                        <input value={zoning} onChange={(e) => setZoning(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.zoning} />
                       </div>
                     </div>
                   </div>
@@ -260,7 +265,7 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Advance Payment</label>
                     <div className="grid grid-cols-2 gap-3">
-                      <input value={advanceNum} onChange={(e) => setAdvanceNum(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="3" />
+                      <input value={advanceNum} onChange={(e) => setAdvanceNum(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.advancePayment} />
                       <select value={advanceUnit} onChange={(e) => setAdvanceUnit(e.target.value as any)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
                         <option value="">Unit</option>
                         <option value="days">Days</option>
@@ -272,7 +277,7 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Min Lease Duration</label>
                     <div className="grid grid-cols-2 gap-3">
-                      <input value={minLeaseValue} onChange={(e) => setMinLeaseValue(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="3" />
+                      <input value={minLeaseValue} onChange={(e) => setMinLeaseValue(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.minLease} />
                       <select value={minLeaseUnit} onChange={(e) => setMinLeaseUnit(e.target.value as any)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
                         <option value="">Unit</option>
                         <option value="months">Months</option>
@@ -283,7 +288,7 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Max Lease Duration</label>
                     <div className="grid grid-cols-2 gap-3">
-                      <input value={maxLeaseValue} onChange={(e) => setMaxLeaseValue(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="60" />
+                      <input value={maxLeaseValue} onChange={(e) => setMaxLeaseValue(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.maxLease} />
                       <select value={maxLeaseUnit} onChange={(e) => setMaxLeaseUnit(e.target.value as any)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
                         <option value="">Unit</option>
                         <option value="months">Months</option>
@@ -305,14 +310,14 @@ export default function RentalLandCreateAdModal({ open, onClose, onCreated, cate
                     <label className="block text-sm font-medium text-gray-700 mb-2">Access/Utilities</label>
                     <div className="relative">
                       <Zap className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input value={accessUtilities} onChange={(e) => setAccessUtilities(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="Paved frontage, irrigation, power lines" />
+                      <input value={accessUtilities} onChange={(e) => setAccessUtilities(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.accessUtilities} />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Restrictions/Amenities</label>
                     <div className="relative">
                       <Mountain className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input value={restrictionsAmenities} onChange={(e) => setRestrictionsAmenities(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="No subletting, soil test available" />
+                      <input value={restrictionsAmenities} onChange={(e) => setRestrictionsAmenities(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.topography} />
                     </div>
                   </div>
                 </div>

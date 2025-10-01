@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(_: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params;
   const key = Array.isArray(path) ? path.join('/') : String(path || '');
-  if (!key || !key.startsWith('ad-images/')) {
+  if (!key || (!key.startsWith('ad-images/') && !key.startsWith('profile-images/'))) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 

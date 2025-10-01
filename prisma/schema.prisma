@@ -25,6 +25,12 @@ model User {
   password      String?
   isAdmin       Boolean   @default(false)
   
+  // Advertiser profile fields
+  profileImage       String?
+  companyName        String?
+  licenseNumber      String?
+  registrationNumber String?
+  
   // Per-user ad configuration
   adActiveDays  Int       @default(3)
   maxActiveAds  Int       @default(1)

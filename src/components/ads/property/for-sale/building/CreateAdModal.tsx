@@ -10,6 +10,7 @@ import Modal from "@/components/Modal";
 import LocationFields from "@/components/ads/shared/LocationFields";
 import ContactInfoSection from "@/components/ads/shared/ContactInfoSection";
 import CreateAdImageSection from "@/components/ads/shared/CreateAdImageSection";
+import { getPropertyPlaceholders, PropertyType } from "@/lib/propertyPlaceholders";
 
 export interface BuildingCreateAdModalProps {
   open: boolean;
@@ -63,6 +64,10 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
   const [investment, setInvestment] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactWhatsapp, setContactWhatsapp] = useState("");
+
+  // Get contextual placeholders based on property type
+  const propertyTypeKey: PropertyType = type as PropertyType;
+  const placeholders = getPropertyPlaceholders(propertyTypeKey);
 
   useEffect(() => {
     if (!open) return;
@@ -159,13 +164,13 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                     <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
                     <div className="relative">
                       <Text className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="Commercial building..." required />
+                      <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.title} required />
                     </div>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none" placeholder="Detailed description of your property..." required />
+                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none" placeholder={placeholders.description} required />
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -180,7 +185,7 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                       <label className="block text-sm font-medium text-gray-700 mb-2">Zoning (optional)</label>
                       <div className="relative">
                         <Map className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input value={zoning} onChange={(e) => setZoning(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="R-1 / MF / O-1" />
+                        <input value={zoning} onChange={(e) => setZoning(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.zoning} />
                       </div>
                     </div>
                   </div>
@@ -200,7 +205,7 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                       <div className="relative">
                         <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <div className="flex">
-                          <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" className="flex-1 pl-10 pr-2 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="1500000" required />
+                          <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" className="flex-1 pl-10 pr-2 py-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.price} required />
                           <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-20 px-3 py-3 border-l-0 border border-gray-200 rounded-r-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
                             {Object.keys(monetary_units_flags).map((code) => (
                               <option key={code} value={code}>{code}</option>
@@ -215,7 +220,7 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                     onAddressChange={setAddress}
                     location={location}
                     onLocationChange={setLocation}
-                    placeholder="123 Main Street, City"
+                    placeholder={placeholders.address}
                   />
                 </div>
               </div>
@@ -233,7 +238,7 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                       <div className="grid grid-cols-2 gap-3">
                         <div className="relative">
                           <Square className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input value={floorAreaValue} onChange={(e) => setFloorAreaValue(e.target.value)} type="number" required className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="1440" />
+                          <input value={floorAreaValue} onChange={(e) => setFloorAreaValue(e.target.value)} type="number" required className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.floorArea} />
                         </div>
                         <select value={floorAreaUnit} onChange={(e) => setFloorAreaUnit(e.target.value as any)} required className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
                           <option value="">Unit</option>
@@ -245,7 +250,7 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Land Size <span className="text-gray-500">(optional)</span></label>
                       <div className="grid grid-cols-2 gap-3">
-                        <input value={landSizeValue} onChange={(e) => setLandSizeValue(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="13.3" />
+                        <input value={landSizeValue} onChange={(e) => setLandSizeValue(e.target.value)} type="number" className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.landSize} />
                         <select value={landSizeUnit} onChange={(e) => setLandSizeUnit(e.target.value as any)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white">
                           <option value="">Unit</option>
                           <option value="hect">Hectares</option>
@@ -261,21 +266,21 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                       <label className="block text-sm font-medium text-gray-700 mb-2">Floors</label>
                       <div className="relative">
                         <Layers className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input value={floors} onChange={(e) => setFloors(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="2" />
+                        <input value={floors} onChange={(e) => setFloors(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.floors} />
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Build Year</label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input value={buildYear} onChange={(e) => setBuildYear(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="2020" />
+                        <input value={buildYear} onChange={(e) => setBuildYear(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.buildYear} />
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Condition</label>
                       <div className="relative">
                         <Wrench className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input value={condition} onChange={(e) => setCondition(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="Excellent" />
+                        <input value={condition} onChange={(e) => setCondition(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.condition} />
                       </div>
                     </div>
                   </div>
@@ -286,14 +291,14 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                         <label className="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
                         <div className="relative">
                           <Bed className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="4" />
+                          <input value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.bedrooms} />
                         </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
                         <div className="relative">
                           <Bath className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input value={bathrooms} onChange={(e) => setBathrooms(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="2" />
+                          <input value={bathrooms} onChange={(e) => setBathrooms(e.target.value)} type="number" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.bathrooms} />
                         </div>
                       </div>
                     </div>
@@ -312,12 +317,12 @@ export default function BuildingCreateAdModal({ open, onClose, onCreated, catego
                     <label className="block text-sm font-medium text-gray-700 mb-2">Parking</label>
                     <div className="relative">
                       <Car className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input value={parking} onChange={(e) => setParking(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="Garage / Street" />
+                      <input value={parking} onChange={(e) => setParking(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.parking} />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Amenities/Utilities</label>
-                    <input value={amenitiesUtilities} onChange={(e) => setAmenitiesUtilities(e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="Pool, Fire suppression" />
+                    <input value={amenitiesUtilities} onChange={(e) => setAmenitiesUtilities(e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={placeholders.amenities} />
                   </div>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import AdListedFooter from "@/components/ads/shared/AdListedFooter";
 import { unitNames } from "@/lib/unitNames";
 import { pricePerPerch } from "@/lib/area";
 import { formatCurrency } from "@/lib/currencyUtils";
+import AdvertiserProfileCard from "@/components/ads/shared/AdvertiserProfileCard";
 
 export default function FullDetail({ ad }: { ad: Ad }) {
   const details: any = (ad as any).details || {};
@@ -97,6 +98,11 @@ export default function FullDetail({ ad }: { ad: Ad }) {
         )}
         <AdContactInfo adId={ad.id} adTitle={ad.title} shortCode={(ad as any).shortCode} contact={details?.extras?.contact as any} />
       </div>
+      {(ad as any)?.userId ? (
+        <div className="px-2 md:px-4 mt-3">
+          <AdvertiserProfileCard userId={(ad as any).userId} />
+        </div>
+      ) : null}
       <div className="p-2 md:p-4 pb-0"> 
         <AdListedFooter createdAt={ad.createdAt} mode="inline" />
        </div>
