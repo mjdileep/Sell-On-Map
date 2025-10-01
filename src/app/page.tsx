@@ -39,12 +39,40 @@ export default function Marketplace() {
   const [targetBounds, setTargetBounds] = useState<{ south: number; west: number; north: number; east: number } | null>(null);
   const [targetFitOptions, setTargetFitOptions] = useState<{ padding?: number; maxZoom?: number; duration?: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
+  const [selectedLeaves, setSelectedLeaves] = useState<CategoryKey[]>([]);
   const [selected, setSelected] = useState<RentalType | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createPickerOpen, setCreatePickerOpen] = useState(false);
+  const [createCategory, setCreateCategory] = useState<CategoryKey | null>(null);
   const [zoom, setZoom] = useState(fallbackZoom);
+
+  function handleCategoryChange(newKey: CategoryKey) {
+    const key = String(newKey || '');
+    if (Array.isArray(selectedLeaves) && selectedLeaves.length > 0) {
+      if (key === 'all') {
+        setSelectedLeaves([]);
+      } else {
+        const prefix = key + '.';
+        const allUnderNew = selectedLeaves.every((k) => typeof k === 'string' && k.startsWith(prefix));
+        if (allUnderNew) setSelectedLeaves([]);
+      }
+    }
+    setActiveCategory(newKey);
+  }
+  // Default category for Create picker: if exactly one leaf is selected under current parent, use it
+  const createDefaultCategory: CategoryKey = (() => {
+    const parent = String(activeCategory || '');
+    if (!parent || parent === 'all') return activeCategory as CategoryKey;
+    const pref = parent + '.';
+    if (Array.isArray(selectedLeaves) && selectedLeaves.length === 1 && String(selectedLeaves[0]).startsWith(pref)) {
+      return selectedLeaves[0] as CategoryKey;
+    }
+    return activeCategory as CategoryKey;
+  })();
+
   const lastFetchCategoryRef = useRef<CategoryKey | null>(null);
+  const lastFetchFiltersRef = useRef<string | null>(null);
   const debounceRef = useRef<number | null>(null);
   const lastBoundsRef = useRef<{ sw: [number, number]; ne: [number, number] } | null>(null);
   const fetchControllerRef = useRef<AbortController | null>(null);
@@ -58,6 +86,11 @@ export default function Marketplace() {
       const fromQuery = (searchParams?.get("category") || "").trim();
       if (fromQuery) {
         setActiveCategory(fromQuery as CategoryKey);
+      }
+      // Read multiple categories (leaf selections)
+      const cats = (searchParams?.getAll('categories') || []).flatMap((c) => (c || '').split(',')).map((s) => s.trim()).filter(Boolean);
+      if (Array.isArray(cats) && cats.length > 0) {
+        setSelectedLeaves(Array.from(new Set(cats)) as CategoryKey[]);
       }
     }, [searchParams]);
     useEffect(() => {
@@ -77,6 +110,18 @@ export default function Marketplace() {
     }, [searchParams, status, openAuthModal]);
     return null;
   }
+  // Keep selected leaves in sync with current parent scope
+  useEffect(() => {
+    const parent = String(activeCategory || '');
+    if (!parent || parent === 'all') {
+      if (selectedLeaves.length > 0) setSelectedLeaves([]);
+      return;
+    }
+    const pref = parent + '.';
+    const pruned = selectedLeaves.filter((k) => typeof k === 'string' && k.startsWith(pref));
+    if (pruned.length !== selectedLeaves.length) setSelectedLeaves(pruned);
+  }, [activeCategory]);
+
 
   function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const toRad = (v: number) => (v * Math.PI) / 180;
@@ -169,7 +214,7 @@ export default function Marketplace() {
           setUserLocation([latitude, longitude]);
           setZoom(13);
           try {
-            const tb = boundsFromCenterRadiusMeters(latitude, longitude, 10000);
+            const tb = boundsFromCenterRadiusMeters(latitude, longitude, 5000);
             setTargetBounds(tb);
             setBounds({ sw: [tb.south, tb.west], ne: [tb.north, tb.east] });
           } catch {}
@@ -257,6 +302,7 @@ export default function Marketplace() {
       fetchListingsByBounds(bounds);
       lastBoundsRef.current = bounds;
       lastFetchCategoryRef.current = activeCategory;
+      lastFetchFiltersRef.current = (selectedLeaves || []).join(',');
       return;
     }
     if (debounceRef.current) {
@@ -264,6 +310,7 @@ export default function Marketplace() {
     }
     debounceRef.current = window.setTimeout(() => {
       const categoryChanged = lastFetchCategoryRef.current !== activeCategory;
+      const leavesChanged = lastFetchFiltersRef.current !== (selectedLeaves || []).join(',');
       const prev = lastBoundsRef.current;
       let changedByViewport = true;
       if (prev) {
@@ -284,10 +331,11 @@ export default function Marketplace() {
         const widthChange = prevWidth > 0 ? Math.abs(currWidth - prevWidth) / prevWidth : 1;
         changedByViewport = Math.max(latShift, lngShift, heightChange, widthChange) >= 0.10;
       }
-      if (categoryChanged || changedByViewport) {
+      if (categoryChanged || leavesChanged || changedByViewport) {
         fetchListingsByBounds(bounds);
         lastBoundsRef.current = bounds;
         lastFetchCategoryRef.current = activeCategory;
+        lastFetchFiltersRef.current = (selectedLeaves || []).join(',');
       }
     }, 600);
     return () => {
@@ -295,7 +343,7 @@ export default function Marketplace() {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [bounds, activeCategory]);
+  }, [bounds, activeCategory, selectedLeaves]);
 
   function fetchParamsFromBounds(b: { sw: [number, number]; ne: [number, number] }): URLSearchParams {
     const params = new URLSearchParams();
@@ -332,6 +380,14 @@ export default function Marketplace() {
       fetchControllerRef.current = controller;
       const params = fetchParamsFromBounds(b);
       params.append('category', activeCategory);
+      // include selected leaf categories within current parent
+      try {
+        const pref = String(activeCategory || '') + '.';
+        if (Array.isArray(selectedLeaves) && selectedLeaves.length > 0 && activeCategory && activeCategory !== 'all') {
+          const inScope = selectedLeaves.filter((k) => typeof k === 'string' && k.startsWith(pref));
+          for (const k of inScope) params.append('categories', k);
+        }
+      } catch {}
       // Pass viewport size so server can choose K full markers
       try {
         const vw = Math.max(320, Math.round((window as any).innerWidth || 0));
@@ -353,7 +409,7 @@ export default function Marketplace() {
           }
           let fitB = boundsFromPoints(points);
           if (!fitB) {
-            fitB = boundsFromCenterRadiusMeters(userLocation[0], userLocation[1], 10000);
+            fitB = boundsFromCenterRadiusMeters(userLocation[0], userLocation[1], 5000);
           }
           if (fitB) {
             setTargetBounds(fitB);
@@ -419,8 +475,8 @@ export default function Marketplace() {
             setTargetFitOptions(fitOptionsForKind(meta?.kind));
           }} onLocate={(lat, lon) => { setUserLocation([lat, lon]); setCenter([lat, lon]); const b = boundsFromCenterRadiusMeters(lat, lon, 8000); setTargetBounds(b); setBounds({ sw: [b.south, b.west], ne: [b.north, b.east] }); }} provider="google" />
         </div>
-        <div className="max-w-[50vw] overflow-x-auto mt-0.5">
-          <CategoryTabs active={activeCategory} onChange={setActiveCategory} />
+        <div className="max-w-[60vw] overflow-x-auto mt-0.5">
+          <CategoryTabs active={activeCategory} onChange={handleCategoryChange} selectedLeaves={selectedLeaves} onSelectedLeavesChange={setSelectedLeaves} />
         </div>
       </div>
 
@@ -439,7 +495,7 @@ export default function Marketplace() {
 
       <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[calc(100vw-8px)] z-[1002]">
         <div className="overflow-x-auto">
-          <CategoryTabs active={activeCategory} onChange={setActiveCategory} compact={false} />
+          <CategoryTabs active={activeCategory} onChange={handleCategoryChange} compact={false} selectedLeaves={selectedLeaves} onSelectedLeavesChange={setSelectedLeaves} />
         </div>
       </div>
 
@@ -459,11 +515,11 @@ export default function Marketplace() {
       </button>
       <CreateAdSelectorModal
         open={createPickerOpen}
-        defaultCategory={activeCategory}
+        defaultCategory={createDefaultCategory}
         onCancel={() => setCreatePickerOpen(false)}
         onSelect={(cat) => {
           setCreatePickerOpen(false);
-          setActiveCategory(cat);
+          setCreateCategory(cat);
           setCreateOpen(true);
         }}
       />
@@ -481,11 +537,17 @@ export default function Marketplace() {
 
       {(() => {
         if (!createOpen) return null;
-        if (!isPropertyCategory(activeCategory)) return null;
-        const CreateModal = resolveCreateAdModal(activeCategory);
+        const catForCreate = (createCategory || activeCategory) as CategoryKey;
+        if (!isPropertyCategory(catForCreate)) return null;
+        const CreateModal = resolveCreateAdModal(catForCreate);
         if (!CreateModal) return null;
         return (
-          <CreateModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => { const b = bounds || lastBoundsRef.current; if (b) { fetchListingsByBounds(b); } }} category={activeCategory} />
+          <CreateModal 
+            open={createOpen} 
+            onClose={() => { setCreateOpen(false); setCreateCategory(null); }} 
+            onCreated={() => { const b = bounds || lastBoundsRef.current; if (b) { fetchListingsByBounds(b); } }} 
+            category={catForCreate} 
+          />
         );
       })()}
     </div>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { logEvent } from '@/lib/analytics';
 import { Phone, MessageCircle, Copy, Check, ExternalLink } from "lucide-react";
+import { slugify } from '@/lib/slug';
 
 export interface ContactData {
   phone?: string | null;
@@ -10,6 +12,9 @@ export interface ContactData {
 
 export interface AdContactInfoProps {
   contact?: string | ContactData | null;
+  adId?: string;
+  adTitle?: string;
+  shortCode?: string | null;
   label?: string;
   showIcons?: boolean;
   clickable?: boolean;
@@ -19,6 +24,9 @@ export interface AdContactInfoProps {
 
 export default function AdContactInfo({
   contact,
+  adId,
+  adTitle,
+  shortCode,
   label = "Contact:",
   showIcons = true,
   clickable = true,
@@ -87,6 +95,7 @@ export default function AdContactInfo({
 
   const makeCall = (number: string) => {
     if (clickable) {
+      try { logEvent({ eventType: 'contact_click_phone', adId, metadata: { numberMasked: number.slice(0, 4) + '****' } }); } catch {}
       window.open(`tel:${number}`, '_self');
     }
   };
@@ -95,7 +104,15 @@ export default function AdContactInfo({
     if (clickable) {
       // Remove any non-digit characters for WhatsApp URL
       const cleanNumber = number.replace(/\D/g, '');
-      window.open(`https://wa.me/${cleanNumber}`, '_blank');
+      try { logEvent({ eventType: 'contact_click_whatsapp', adId, metadata: { numberMasked: cleanNumber.slice(0, 4) + '****' } }); } catch {}
+      const codePart = (shortCode && String(shortCode).trim()) ? ` (Code: ${String(shortCode).trim()})` : (adId ? ` (Code: #${String(adId).slice(0, 6)})` : '');
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const slug = adTitle ? slugify(adTitle) : '';
+      const pageUrl = (origin && adId) ? `${origin}/ad/${adId}/${slug}` : (typeof window !== 'undefined' ? window.location.href : '');
+      const title = (adTitle && adTitle.trim()) ? `"${adTitle.trim()}"` : 'your property listing';
+      const message = `Hi! I'm interested in ${title}${codePart}. Is it still available?\n\nLink: ${pageUrl}`;
+      const encoded = encodeURIComponent(message);
+      window.open(`https://wa.me/${cleanNumber}?text=${encoded}`, '_blank');
     }
   };
 

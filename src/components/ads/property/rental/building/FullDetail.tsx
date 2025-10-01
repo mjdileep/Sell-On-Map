@@ -8,6 +8,10 @@ import { unitNames } from "@/lib/unitNames";
 
 export default function FullDetail({ ad }: { ad: Ad }) {
   const details: any = (ad as any)?.details || {};
+  const isResidential = String(ad.category || '').toLowerCase().includes('property.rental.building.residential');
+  const pg = String(details?.preferredGender || '').toLowerCase();
+  const genderLine = isResidential && (pg === 'male' || pg === 'female') ? (pg === 'male' ? 'Male only 👨' : 'Female only 👩') : undefined;
+  
   return (
     <>
       <AdTopSummary
@@ -21,6 +25,7 @@ export default function FullDetail({ ad }: { ad: Ad }) {
         address={ad.address}
         lat={ad.lat}
         lng={ad.lng}
+        preDescription={genderLine}
       />
       <div className="p-2 md:p-4 grid grid-cols-1 gap-2 text-sm text-gray-700">
         {details?.type && (
@@ -169,7 +174,7 @@ export default function FullDetail({ ad }: { ad: Ad }) {
             </div>
           </div>
         )}
-        <AdContactInfo contact={details?.extras?.contact as any} />
+        <AdContactInfo adId={ad.id} adTitle={ad.title} shortCode={(ad as any).shortCode} contact={details?.extras?.contact as any} />
       </div>
       <div className="p-2 md:p-4 pb-0"> 
       <AdListedFooter createdAt={ad.createdAt} mode="inline" />

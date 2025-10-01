@@ -40,25 +40,12 @@ export const categoryTree: CategoryNode = {
                   label: 'Residential',
                   enabled: true,
                   children: [
-                    {
-                      key: 'property.rental.building.residential.private',
-                      label: 'Private',
-                      enabled: true,
-                      children: [
-                        { key: 'property.rental.building.residential.private.apartment', label: 'Apartment', enabled: true},
-                        { key: 'property.rental.building.residential.private.house', label: 'House', enabled: true },
-                        { key: 'property.rental.building.residential.private.annex', label: 'Annex', enabled: true },
-                      ],
-                    },
-                    {
-                      key: 'property.rental.building.residential.shared',
-                      label: 'Shared',
-                      enabled: true,
-                      children: [
-                        { key: 'property.rental.building.residential.shared.room', label: 'Room', enabled: true },
-                        { key: 'property.rental.building.residential.shared.hostel', label: 'Hostel', enabled: true },
-                      ],
-                    },
+                    { key: 'property.rental.building.residential.private-apartment', label: 'Apartment', enabled: true},
+                    { key: 'property.rental.building.residential.private-house', label: 'House', enabled: true },
+                    { key: 'property.rental.building.residential.private-annex', label: 'Annex', enabled: true },
+                    { key: 'property.rental.building.residential.private-room', label: 'Private Room', enabled: true },
+                    { key: 'property.rental.building.residential.shared-room', label: 'Shared Room', enabled: true },
+                    { key: 'property.rental.building.residential.shared-hostel', label: 'Hostel', enabled: true },
                   ],
                 },
                 {

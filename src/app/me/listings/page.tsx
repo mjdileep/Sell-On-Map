@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthModal } from '@/app/providers';
 import { useSession } from 'next-auth/react';
-import { Edit2, Trash2, Eye, EyeOff, Calendar, MapPin, DollarSign, Plus, Home, TrendingUp, Clock, AlertCircle, BarChart3 } from 'lucide-react';
+import { Edit2, Trash2, Eye, EyeOff, Calendar, MapPin, DollarSign, Plus, Home, TrendingUp, Clock, AlertCircle, BarChart3, Hash } from 'lucide-react';
 import CreateAdSelectorModal from '@/components/ads/CreateAdSelectorModal';
 import { resolveCreateAdModal, resolveDetailModal, resolveEditAdModal, resolveMyListingCard } from '@/components/ads/resolver';
 import { formatCurrency } from '@/lib/currencyUtils';
+import AdStatsChart from '@/components/AdStatsChart';
 
 type Ad = {
   id: string;
@@ -21,6 +22,7 @@ type Ad = {
   details: any;
   moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectReason?: string | null;
+  shortCode?: string | null;
 };
 
 export default function MyListingsPage() {
@@ -100,7 +102,7 @@ export default function MyListingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Enhanced Header with Stats */}
         <div className="mb-8">
@@ -154,13 +156,13 @@ export default function MyListingsPage() {
 
         {/* Enhanced Tab Navigation */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-            <nav className="flex space-x-1">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 overflow-x-auto">
+            <nav className="flex space-x-1 min-w-max px-1">
               {['all', 'active', 'inactive', 'pending', 'rejected'].map((t) => (
                 <button
                   key={t}
                   onClick={() => { setTab(t as any); setPage(1); }}
-                  className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-all duration-200 relative ${
+                  className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-all duration-200 relative whitespace-nowrap ${
                     tab === t
                       ? 'bg-blue-50 text-blue-700 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -307,12 +309,26 @@ export default function MyListingsPage() {
                         <p className="text-sm font-semibold text-gray-900">{ad.expiresAt ? new Date(ad.expiresAt).toLocaleDateString() : '-'}</p>
                       </div>
                     </div>
+                    <div className="flex items-center text-gray-600">
+                      <div className="p-2 bg-gray-100 rounded-lg mr-3">
+                        <Hash className="w-4 h-4 text-gray-700" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Code</p>
+                        <p className="text-sm font-semibold text-gray-900">{(ad as any).shortCode || '-'}</p>
+                      </div>
+                    </div>
                     {ad.moderationStatus === 'REJECTED' && (
                       <div className="flex items-center text-red-700 bg-red-50 rounded-md px-3 py-2">
                         <AlertCircle className="w-4 h-4 mr-2" />
                         <span className="text-sm font-medium">{ad.rejectReason || 'Rejected by admin'}</span>
                       </div>
                     )}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="mb-4">
+                    <AdStatsChart adId={ad.id} days={14} />
                   </div>
 
                   {/* Actions - Enhanced */}

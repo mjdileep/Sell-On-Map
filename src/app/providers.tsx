@@ -1,11 +1,12 @@
 "use client";
 import { SessionProvider } from 'next-auth/react';
 import { Menu, Home, User, LogOut, List, Loader2, MapPinned } from 'lucide-react';
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import Drawer from '@/components/Drawer';
 import Link from 'next/link';
 import { signIn, signOut, useSession } from 'next-auth/react';
-import { ConfigProvider } from './config-context';
+import { ConfigProvider, useConfig } from './config-context';
+import { logEvent, logPageView } from '@/lib/analytics';
 import Modal from '@/components/Modal';
 import Image from 'next/image';
 
@@ -44,11 +45,22 @@ function Shell({ children }: { children: React.ReactNode }) {
   const [authCallbackUrl, setAuthCallbackUrl] = useState<string | undefined>(undefined);
   const { data: session, status } = useSession();
   const user = session?.user as any;
+  const { country } = useConfig();
+
+  useEffect(() => {
+    // Fire a pageview on initial load and on visibility changes back to visible
+    try {
+      const path = typeof location !== 'undefined' ? location.pathname + location.search : '/';
+      logPageView({ path, country, hostname: typeof location !== 'undefined' ? location.hostname : undefined });
+    } catch {}
+  }, [country]);
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
     try {
       const cb = authCallbackUrl || '/';
+      // Log intent to login before redirect
+      try { await logEvent({ eventType: 'login_click', path: typeof location !== 'undefined' ? location.pathname : '/', country }); } catch {}
       await signIn('google', { callbackUrl: cb });
     } catch (error) {
       console.error('Sign in error:', error);
@@ -155,6 +167,18 @@ function Shell({ children }: { children: React.ReactNode }) {
                     ) : null}
                     {user?.isAdmin ? (
                       <Link 
+                        href="/admin/analytics" 
+                        className="flex items-center space-x-3 w-full px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200 text-gray-700 hover:text-gray-900 border border-transparent hover:border-indigo-100" 
+                        onClick={() => setOpen(false)}
+                      >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-r from-indigo-100 to-blue-100">
+                          <span className="text-indigo-600 text-sm font-semibold">A</span>
+                        </div>
+                        <span className="font-medium">Admin Analytics</span>
+                      </Link>
+                    ) : null}
+                    {user?.isAdmin ? (
+                      <Link 
                         href="/admin/ads" 
                         className="flex items-center space-x-3 w-full px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-200 text-gray-700 hover:text-gray-900 border border-transparent hover:border-purple-100" 
                         onClick={() => setOpen(false)}
@@ -167,7 +191,7 @@ function Shell({ children }: { children: React.ReactNode }) {
                     ) : null}
                     
                     <button 
-                      onClick={() => signOut({ callbackUrl: '/' })} 
+                      onClick={() => { try { logEvent({ eventType: 'logout_click', path: typeof location !== 'undefined' ? location.pathname : '/', country }); } catch {}; signOut({ callbackUrl: '/' }); }} 
                       className="flex items-center space-x-3 w-full px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-red-50 hover:to-orange-50 transition-all duration-200 text-gray-700 hover:text-gray-900 border border-transparent hover:border-red-100"
                     >
                       <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-r from-red-100 to-orange-100">

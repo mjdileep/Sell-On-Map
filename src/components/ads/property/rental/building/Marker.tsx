@@ -14,7 +14,10 @@ function mk(color: string, text?: string): HTMLDivElement {
 function label(ad: Ad): string {
   const cat = String((ad as any).category || '').toLowerCase();
   const isShared = cat.includes('property.rental.building.residential.shared');
-  return `${formatCurrency(ad.price, (ad as any).currency || 'USD')}${isShared ? '/pp/mo' : '/mo'}`;
+  const base = `${formatCurrency(ad.price, (ad as any).currency || 'USD')}${isShared ? '/pp/mo' : '/mo'}`;
+  const pg = String(((ad as any).details?.preferredGender) || '').toLowerCase();
+  const suffix = pg === 'male' ? ' 👨' : pg === 'female' ? ' 👩' : '';
+  return `${base}${suffix}`;
 }
 export function createRentalBuildingResidentialMarkerElement(ad: Ad, variant: 'full' | 'dot'): HTMLDivElement { return mk('#2563eb', variant === 'full' ? label(ad) : undefined); }
 export function createRentalBuildingCommercialOfficeMarkerElement(ad: Ad, variant: 'full' | 'dot'): HTMLDivElement { return mk('#1d4ed8', variant === 'full' ? label(ad) : undefined); }

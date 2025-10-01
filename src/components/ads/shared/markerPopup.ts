@@ -49,7 +49,10 @@ function metricParts(ad: Ad): string[] {
     const fa = details?.floorArea;
     const ls = details?.landSize;
 
-    if (type === "residential") {
+    if (ad?.category?.toLowerCase().includes(".residential")) {
+      const pg = String(details?.preferredGender || '').toLowerCase();
+      if (pg === 'male') parts.push('Male only 👨');
+      else if (pg === 'female') parts.push('Female only 👩');
       if (typeof rooms?.beds === 'number' && rooms.beds >= 0) parts.push(`🛏️ ${rooms.beds} bed${rooms.beds !== 1 ? 's' : ''} vacant`);
       if (rooms?.bedrooms) parts.push(`🛏️ ${rooms.bedrooms} Bedroom${rooms.bedrooms > 1 ? 's' : ''}`);
       if (rooms?.bathrooms) parts.push(`🚿 ${rooms.bathrooms} Bathroom${rooms.bathrooms > 1 ? 's' : ''}`);

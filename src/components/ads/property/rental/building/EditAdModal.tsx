@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Text, Loader2, Banknote, Building2, Calendar, Layers, Square, Wrench, Car, Clock, Shield, Bed, Bath } from "lucide-react";
+import { Text, Loader2, Banknote, Building2, Calendar, Layers, Square, Wrench, Car, Clock, Shield, Bed, Bath, User } from "lucide-react";
 import { useAuthModal } from "@/app/providers";
 import { useRouter } from "next/navigation";
 import { useConfig } from "@/app/config-context";
@@ -11,9 +11,14 @@ import LocationFields from "@/components/ads/shared/LocationFields";
 import ContactInfoSection from "@/components/ads/shared/ContactInfoSection";
 import CreateAdImageSection from "@/components/ads/shared/CreateAdImageSection";
 
-function deriveType(category?: string): 'residential' | 'office' | 'retail' | 'warehouse' | 'manufacturing' | 'mixed-use' | 'hospitality' | '' {
+function deriveType(category?: string): 'shared-room' | 'private-room' | 'shared-hostel' | 'private-apartment' | 'private-house' | 'private-annex' | 'office' | 'retail' | 'warehouse' | 'manufacturing' | 'mixed-use' | 'hospitality' | '' {
   const c = (category || '').toLowerCase();
-  if (c.includes('.residential')) return 'residential';
+  if (c.includes('.residential.private-room')) return 'private-room';
+  if (c.includes('.residential.shared-room')) return 'shared-room';
+  if (c.includes('.residential.shared-hostel')) return 'shared-hostel';
+  if (c.includes('.residential.private-apartment')) return 'private-apartment';
+  if (c.includes('.residential.private-house')) return 'private-house';
+  if (c.includes('.residential.private-annex')) return 'private-annex';
   if (c.includes('.commercial.office')) return 'office';
   if (c.includes('.commercial.retail')) return 'retail';
   if (c.includes('.industrial.warehouse')) return 'warehouse';
@@ -64,6 +69,7 @@ export default function RentalBuildingEditAdModal({ open, onClose, adId, onSaved
   const [contactWhatsapp, setContactWhatsapp] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [beds, setBeds] = useState("");
+  const [preferredGender, setPreferredGender] = useState<'any' | 'male' | 'female' | ''>('');
   const isSharedResidential = useMemo(() => (category || '').toLowerCase().includes('property.rental.building.residential.shared'), [category]);
   const isPrivateResidential = useMemo(() => (category || '').toLowerCase().includes('property.rental.building.residential.private'), [category]);
 
@@ -116,6 +122,7 @@ export default function RentalBuildingEditAdModal({ open, onClose, adId, onSaved
         setContactPhone(String(details?.extras?.contact?.phone || ''));
         setContactWhatsapp(String(details?.extras?.contact?.whatsapp || ''));
         setBeds(String(details?.rooms?.beds ?? ''));
+        setPreferredGender((details?.preferredGender as any) || '');
       } finally {
         setLoading(false);
       }
@@ -150,8 +157,9 @@ export default function RentalBuildingEditAdModal({ open, onClose, adId, onSaved
             billingPeriod,
             floorArea: { value: Number(floorAreaValue), unit: floorAreaUnit },
             landSize: landSizeValue ? { value: Number(landSizeValue), unit: landSizeUnit } : undefined,
+            preferredGender: preferredGender || undefined,
             structure: { floors: floors ? Number(floors) : undefined, buildYear: buildYear ? Number(buildYear) : undefined, condition },
-            rooms: (type === 'residential') ? { bedrooms: bedrooms ? Number(bedrooms) : undefined, bathrooms: bathrooms ? Number(bathrooms) : undefined, beds: (isSharedResidential || isPrivateResidential) && beds !== '' ? Number(beds) : undefined } : undefined,
+            rooms: { bedrooms: bedrooms ? Number(bedrooms) : undefined, bathrooms: bathrooms ? Number(bathrooms) : undefined, beds: (isSharedResidential || isPrivateResidential) && beds !== '' ? Number(beds) : undefined },
             usage: { zoning },
             parking,
             leaseTerms: {
@@ -319,8 +327,7 @@ export default function RentalBuildingEditAdModal({ open, onClose, adId, onSaved
                   </div>
                 </div>
 
-                {type === 'residential' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-white rounded-lg border border-indigo-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-white rounded-lg border border-indigo-200">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
                       <div className="relative">
@@ -342,8 +349,19 @@ export default function RentalBuildingEditAdModal({ open, onClose, adId, onSaved
                         <input value={beds} onChange={(e) => setBeds(e.target.value)} type="number" required={isSharedResidential} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder={isSharedResidential ? 'Number of vacant beds' : 'Total beds'} />
                       </div>
                     </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <select value={preferredGender} onChange={(e) => setPreferredGender(e.target.value as any)} required={isSharedResidential} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white appearance-none">
+                      <option value="">Select</option>
+                      <option value="any">Any</option>
+                      <option value="male">Male Only</option>
+                      <option value="female">Female Only</option>
+                    </select>
                   </div>
-                )}
+                </div>
+                  </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div>
@@ -415,19 +433,6 @@ export default function RentalBuildingEditAdModal({ open, onClose, adId, onSaved
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Amenities/Utilities</label>
                   <input value={amenitiesUtilities} onChange={(e) => setAmenitiesUtilities(e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="WiFi included, loading docks, HVAC" />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Lease Type</label>
-                    <div className="relative">
-                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <select value={leaseType} onChange={(e) => setLeaseType(e.target.value as any)} className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white appearance-none">
-                        <option value="">Select Type</option>
-                        <option value="NNN">NNN (Triple Net)</option>
-                        <option value="Gross">Gross Lease</option>
-                      </select>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

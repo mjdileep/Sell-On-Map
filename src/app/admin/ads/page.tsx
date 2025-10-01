@@ -123,6 +123,15 @@ export default function AdminAllAdsPage() {
                       <button onClick={() => call('activate', ad.id)} className="px-3 py-2 rounded bg-blue-600 text-white">Activate</button>
                     )
                   )}
+                  {/* Short code + Boost */}
+                  <div className="ml-auto flex items-center gap-3">
+                    <div className="text-xs text-gray-600">Code: {ad.shortCode || '-'}</div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-600">Boost</label>
+                      <input type="range" min={1} max={100} defaultValue={ad.boost || 1} onChange={(e)=>call('boost', ad.id, { boost: Number((e.target as any).value) })} />
+                      <span className="text-xs w-8 text-right">{ad.boost || 1}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

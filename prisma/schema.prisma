@@ -32,6 +32,8 @@ model User {
   accounts Account[]
   sessions Session[]
   ads      Ad[]
+  pageViews PageView[]
+  analyticsEvents AnalyticsEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -85,6 +87,12 @@ model Ad {
   category    String   // e.g. "property.rental", "property.sale.land", "clothing"
   photos      String[]
   attributes  Json?
+  
+  // Boost controls probability weighting in map sampling
+  boost       Int      @default(1)
+
+  // Short display code like "u1x-llm0g2" for quick reference/search
+  shortCode   String?  @unique
 
   moderationStatus AdModerationStatus @default(PENDING)
   rejectReason     String?
@@ -103,5 +111,62 @@ model Ad {
   @@index([category, isActive])
   @@index([moderationStatus, isActive])
   @@index([lat, lng])
+
+  analyticsEvents AnalyticsEvent[]
+}
+
+/// Basic web analytics pageview record
+model PageView {
+  id         String   @id @default(cuid())
+  occurredAt DateTime @default(now())
+
+  // Who
+  userId   String? 
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clientId String?  // anonymous client id from localStorage
+
+  // What/where
+  path     String
+  referrer String?
+  country  String?   // country inferred client-side
+  city     String?
+  hostname String?
+
+  // Tech context
+  userAgent String?
+  ipHash    String?   // hashed/anonymized IP
+  screen    Json?
+
+  @@index([occurredAt])
+  @@index([country, occurredAt])
+  @@index([path, occurredAt])
+}
+
+/// Generic analytics event
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  occurredAt DateTime @default(now())
+
+  eventType String
+
+  // Who
+  userId   String?
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clientId String?
+
+  // Related content
+  adId   String?
+  ad     Ad?       @relation(fields: [adId], references: [id], onDelete: SetNull)
+
+  // Context
+  path     String?
+  referrer String?
+  country  String?
+  metadata Json?
+
+  @@index([occurredAt])
+  @@index([eventType, occurredAt])
+  @@index([country, occurredAt])
+  @@index([adId, eventType, occurredAt])
 }
 

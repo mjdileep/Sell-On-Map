@@ -11,6 +11,8 @@ export interface CategoryTabsProps {
   active: CategoryKey;
   onChange: (key: CategoryKey) => void;
   compact?: boolean;
+  selectedLeaves?: CategoryKey[];
+  onSelectedLeavesChange?: (keys: CategoryKey[]) => void;
 }
 
 interface CategoryNode {
@@ -21,138 +23,6 @@ interface CategoryNode {
   children?: CategoryNode[];
 }
 
-const fallbackCategoryTree: CategoryNode = {
-  key: "all",
-  label: "All",
-  Icon: Layers,
-  enabled: true,
-  children: [
-    {
-      key: "property",
-      label: "Property",
-      Icon: Home,
-      enabled: true,
-      children: [
-        {
-          key: "property.rental",
-          label: "Rental",
-          Icon: Home,
-          enabled: true,
-          children: [
-            {
-              key: "property.rental.land",
-              label: "Land",
-              Icon: Landmark,
-              enabled: true,
-              children: [
-                { key: "property.rental.land.residential", label: "Residential", enabled: true },
-                { key: "property.rental.land.commercial", label: "Commercial", enabled: true },
-                { key: "property.rental.land.industrial", label: "Industrial", enabled: true },
-                { key: "property.rental.land.agricultural", label: "Agricultural", enabled: true },
-              ],
-            },
-            {
-              key: "property.rental.building",
-              label: "Building",
-              Icon: Building2,
-              enabled: true,
-              children: [
-                {
-                  key: "property.rental.building.residential",
-                  label: "Residential",
-                  enabled: true,
-                  children: [
-                    { key: "property.rental.building.residential.single-family", label: "Single Family", enabled: true },
-                    { key: "property.rental.building.residential.multi-family", label: "Multi Family", enabled: true },
-                    { key: "property.rental.building.residential.condo-townhouse", label: "Condo/Townhouse", enabled: true },
-                  ],
-                },
-                {
-                  key: "property.rental.building.commercial",
-                  label: "Commercial",
-                  enabled: true,
-                  children: [
-                    { key: "property.rental.building.commercial.office", label: "Office", enabled: true },
-                    { key: "property.rental.building.commercial.retail", label: "Retail", enabled: true },
-                  ],
-                },
-                {
-                  key: "property.rental.building.industrial",
-                  label: "Industrial",
-                  enabled: true,
-                  children: [
-                    { key: "property.rental.building.industrial.warehouse", label: "Warehouse", enabled: true },
-                    { key: "property.rental.building.industrial.manufacturing", label: "Manufacturing", enabled: true },
-                  ],
-                },
-                { key: "property.rental.building.mixed-use", label: "Mixed Use", enabled: true },
-                { key: "property.rental.building.hospitality", label: "Hospitality", enabled: true },
-              ],
-            },
-          ],
-        },
-        {
-          key: "property.for-sale",
-          label: "For Sale",
-          Icon: Landmark,
-          enabled: true,
-          children: [
-            {
-              key: "property.for-sale.land",
-              label: "Land",
-              Icon: Landmark,
-              enabled: true,
-              children: [
-                { key: "property.for-sale.land.residential", label: "Residential", enabled: true },
-                { key: "property.for-sale.land.commercial", label: "Commercial", enabled: true },
-                { key: "property.for-sale.land.industrial", label: "Industrial", enabled: true },
-                { key: "property.for-sale.land.agricultural", label: "Agricultural", enabled: true },
-              ],
-            },
-            {
-              key: "property.for-sale.building",
-              label: "Building",
-              Icon: Building2,
-              enabled: true,
-              children: [
-                {
-                  key: "property.for-sale.building.residential",
-                  label: "Residential",
-                  enabled: true,
-                  children: [
-                    { key: "property.for-sale.building.residential.single-family", label: "Single Family", enabled: true },
-                    { key: "property.for-sale.building.residential.multi-family", label: "Multi Family", enabled: true },
-                    { key: "property.for-sale.building.residential.condo-townhouse", label: "Condo/Townhouse", enabled: true },
-                  ],
-                },
-                {
-                  key: "property.for-sale.building.commercial",
-                  label: "Commercial",
-                  enabled: true,
-                  children: [
-                    { key: "property.for-sale.building.commercial.office", label: "Office", enabled: true },
-                    { key: "property.for-sale.building.commercial.retail", label: "Retail", enabled: true },
-                  ],
-                },
-                {
-                  key: "property.for-sale.building.industrial",
-                  label: "Industrial",
-                  enabled: true,
-                  children: [
-                    { key: "property.for-sale.building.industrial.warehouse", label: "Warehouse", enabled: true },
-                    { key: "property.for-sale.building.industrial.manufacturing", label: "Manufacturing", enabled: true },
-                  ],
-                },
-                { key: "property.for-sale.building.mixed-use", label: "Mixed Use", enabled: true },
-                { key: "property.for-sale.building.hospitality", label: "Hospitality", enabled: true },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
 
 function transform(node: RawCategoryNode): CategoryNode {
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -206,13 +76,13 @@ function topLevelOf(key: CategoryKey): CategoryKey {
   return key.split('.')[0];
 }
 
-export default function CategoryTabs({ active, onChange, compact = false }: CategoryTabsProps) {
+export default function CategoryTabs({ active, onChange, compact = false, selectedLeaves, onSelectedLeavesChange }: CategoryTabsProps) {
   const [open, setOpen] = useState(false);
   const { categories: rawCategories } = useConfig();
-  const categoryTree = useMemo(() => (rawCategories ? transform(rawCategories as RawCategoryNode) : fallbackCategoryTree), [rawCategories]);
+  const categoryTree = useMemo(() => rawCategories ? transform(rawCategories as RawCategoryNode) : null, [rawCategories]);
 
   const effectiveActiveKey = useMemo(() => {
-    const children = categoryTree.children || [];
+    const children = categoryTree?.children || [];
     if (children.length === 1 && (active === 'all' || !active)) {
       return children[0].key;
     }
@@ -220,7 +90,7 @@ export default function CategoryTabs({ active, onChange, compact = false }: Cate
   }, [active, categoryTree]);
 
   const topTabs = useMemo(() => {
-    const children = categoryTree.children || [];
+    const children = categoryTree?.children || [];
     // If there's only one child under root, use just that child without "All"
     if (children.length === 1) {
       return children;
@@ -235,10 +105,36 @@ export default function CategoryTabs({ active, onChange, compact = false }: Cate
 
   const currentTop = useMemo(() => topTabs.find(t => t.key === currentTopKey) || topTabs[0], [topTabs, currentTopKey]);
 
-  const activeNode = useMemo(() => findNode(categoryTree, effectiveActiveKey) || currentTop, [effectiveActiveKey, currentTop, categoryTree]);
-  const breadcrumbs = useMemo(() => getPath(categoryTree, effectiveActiveKey).slice(1), [effectiveActiveKey, categoryTree]); // exclude virtual root
+  const activeNode = useMemo(() => categoryTree ? findNode(categoryTree, effectiveActiveKey) || currentTop : currentTop, [effectiveActiveKey, currentTop, categoryTree]);
+  const breadcrumbs = useMemo(() => categoryTree ? getPath(categoryTree, effectiveActiveKey).slice(1) : [], [effectiveActiveKey, categoryTree]); // exclude virtual root
   const children = activeNode?.children || [];
-  const activeLevel = useMemo(() => getPath(categoryTree, effectiveActiveKey).length, [effectiveActiveKey, categoryTree]);
+  const activeLevel = useMemo(() => categoryTree ? getPath(categoryTree, effectiveActiveKey).length : 0, [effectiveActiveKey, categoryTree]);
+
+  // Leaf-level multi-select helpers
+  const isLeaf = (n: CategoryNode) => !n.children || n.children.length === 0;
+  const isLeafChildren = children.length > 0 && children.every(isLeaf);
+  const parentPrefix = activeNode?.key && activeNode.key !== 'all' ? `${activeNode.key}.` : '';
+  const filteredSelectedLeaves = useMemo(() => {
+    if (!Array.isArray(selectedLeaves) || !parentPrefix) return [] as CategoryKey[];
+    return selectedLeaves.filter(k => typeof k === 'string' && k.startsWith(parentPrefix));
+  }, [selectedLeaves, parentPrefix]);
+
+  function toggleLeafSelection(key: CategoryKey) {
+    if (!onSelectedLeavesChange) return;
+    const exists = filteredSelectedLeaves.includes(key);
+    if (exists) onSelectedLeavesChange(filteredSelectedLeaves.filter(k => k !== key));
+    else onSelectedLeavesChange([...filteredSelectedLeaves, key]);
+  }
+
+  function selectAllLeaves() {
+    if (!onSelectedLeavesChange) return;
+    onSelectedLeavesChange(children.map(c => c.key) as CategoryKey[]);
+  }
+
+  function clearLeafSelection() {
+    if (!onSelectedLeavesChange) return;
+    onSelectedLeavesChange([]);
+  }
 
   if (compact) {
     const CurrentIcon = (activeNode?.Icon || currentTop?.Icon || Layers);
@@ -266,12 +162,55 @@ export default function CategoryTabs({ active, onChange, compact = false }: Cate
             <div className="p-2 space-y-1">
               {children.length === 0 ? (
                 <div className="text-gray-400 text-sm px-3 py-1.5">No subcategories</div>
-              ) : children.map(c => (
-                <button key={c.key} onClick={() => { onChange(c.key); setOpen(false); }} className={`w-full text-left px-3 py-1.5 rounded ${c.key === active ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100'}`}>{c.label}</button>
-              ))}
+              ) : isLeafChildren && onSelectedLeavesChange ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <button onClick={() => selectAllLeaves()} className="text-xs text-blue-700 hover:underline">Select all</button>
+                    <button onClick={() => clearLeafSelection()} className="text-xs text-gray-600 hover:underline">Clear</button>
+                  </div>
+                  {children.map(c => {
+                    const checked = filteredSelectedLeaves.includes(c.key);
+                    return (
+                      <label key={c.key} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${checked ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100'}`}>
+                        <input type="checkbox" className="accent-blue-600" checked={checked} onChange={() => toggleLeafSelection(c.key)} />
+                        <span className="flex-1 text-left">{c.label}</span>
+                      </label>
+                    );
+                  })}
+                  <div className="pt-1">
+                    <button onClick={() => setOpen(false)} className="w-full text-center text-xs text-white bg-blue-600 hover:bg-blue-700 rounded px-2 py-1.5">Done</button>
+                  </div>
+                </div>
+              ) : (
+                children.map(c => (
+                  <button key={c.key} onClick={() => { onChange(c.key); setOpen(false); }} className={`w-full text-left px-3 py-1.5 rounded ${c.key === active ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100'}`}>{c.label}</button>
+                ))
+              )}
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Show loading state when categories are not available yet
+  if (!categoryTree) {
+    return (
+      <div className="w-full">
+        <div className="lg:hidden">
+          <button className="flex items-center px-3 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-100 transition-colors">
+            <Layers className="h-4 w-4 mr-2" />
+            <span>Loading...</span>
+          </button>
+        </div>
+        <div className="w-full overflow-x-auto">
+          <div role="tablist" aria-label="Categories" className="flex items-center gap-1 whitespace-nowrap pr-1 justify-center lg:justify-start">
+            <button className="px-4 py-2 text-sm font-bold rounded-md border md:shadow-md shadow-[0_-4px_15px_rgba(0,0,0,0.1)] bg-gray-100 text-gray-400 cursor-not-allowed">
+              <Layers className="h-4 w-4 mr-2 inline-block" />
+              Loading...
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -305,21 +244,46 @@ export default function CategoryTabs({ active, onChange, compact = false }: Cate
               {/* Expanded children at the bottom-right, skip when 'All' is selected */}
               {currentTopKey !== 'all' && children.length > 0 && (
                 <div className="flex items-center gap-1 justify-end">
-                  {children.map((c) => (
-                    <button
-                      key={c.key}
-                      onClick={() => onChange(c.key)}
-                      className={`inline-flex items-center px-1.5 py-1 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] rounded-md border transition-colors whitespace-nowrap ${
-                        c.key === active ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
-                      }`}
-                      aria-pressed={c.key === active}
-                      aria-label={`${currentTop?.label} - ${c.label}`}
-                      title={`${currentTop?.label} - ${c.label}`}
-                    >
-                      {c.Icon ? <c.Icon className="h-4 w-4 mr-2" /> : null}
-                      <span>{c.label}</span>
-                    </button>
-                  ))}
+                  {isLeafChildren && onSelectedLeavesChange ? (
+                    <>
+                      {children.map((c) => {
+                        const selected = filteredSelectedLeaves.includes(c.key);
+                        return (
+                          <button
+                            key={c.key}
+                            onClick={() => toggleLeafSelection(c.key)}
+                            className={`inline-flex items-center px-1.5 py-1 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] rounded-md border transition-colors whitespace-nowrap ${
+                              selected ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
+                            }`}
+                            aria-pressed={selected}
+                            aria-label={`${currentTop?.label} - ${c.label}`}
+                            title={`${currentTop?.label} - ${c.label}`}
+                          >
+                            {c.Icon ? <c.Icon className="h-4 w-4 mr-2" /> : null}
+                            <span>{c.label}</span>
+                          </button>
+                        );
+                      })}
+                      <button onClick={selectAllLeaves} className="ml-2 text-xs text-blue-700 hover:underline">Select all</button>
+                      <button onClick={clearLeafSelection} className="text-xs text-gray-600 hover:underline">Clear</button>
+                    </>
+                  ) : (
+                    children.map((c) => (
+                      <button
+                        key={c.key}
+                        onClick={() => onChange(c.key)}
+                        className={`inline-flex items-center px-1.5 py-1 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] rounded-md border transition-colors whitespace-nowrap ${
+                          c.key === active ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
+                        }`}
+                        aria-pressed={c.key === active}
+                        aria-label={`${currentTop?.label} - ${c.label}`}
+                        title={`${currentTop?.label} - ${c.label}`}
+                      >
+                        {c.Icon ? <c.Icon className="h-4 w-4 mr-2" /> : null}
+                        <span>{c.label}</span>
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -378,21 +342,46 @@ export default function CategoryTabs({ active, onChange, compact = false }: Cate
           {/* Expanded children at the bottom-right, skip when 'All' is selected */}
           {currentTopKey !== 'all' && children.length > 0 && (
             <div className="flex items-center gap-1 justify-end">
-              {children.map((c) => (
-                <button
-                  key={c.key}
-                  onClick={() => onChange(c.key)}
-                  className={`inline-flex items-center px-1.5 py-1 rounded-md shadow-md border transition-colors ${
-                    c.key === active ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
-                  }`}
-                  aria-pressed={c.key === active}
-                  aria-label={`${currentTop?.label} - ${c.label}`}
-                  title={`${currentTop?.label} - ${c.label}`}
-                >
-                  {c.Icon ? <c.Icon className="h-4 w-4 mr-2" /> : null}
-                  <span>{c.label}</span>
-                </button>
-              ))}
+              {isLeafChildren && onSelectedLeavesChange ? (
+                <>
+                  {children.map((c) => {
+                    const selected = filteredSelectedLeaves.includes(c.key);
+                    return (
+                      <button
+                        key={c.key}
+                        onClick={() => toggleLeafSelection(c.key)}
+                        className={`inline-flex items-center px-1.5 py-1 rounded-md shadow-md border transition-colors whitespace-nowrap ${
+                          selected ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
+                        }`}
+                        aria-pressed={selected}
+                        aria-label={`${currentTop?.label} - ${c.label}`}
+                        title={`${currentTop?.label} - ${c.label}`}
+                      >
+                        {c.Icon ? <c.Icon className="h-4 w-4 mr-2" /> : null}
+                        <span>{c.label}</span>
+                      </button>
+                    );
+                  })}
+                  <button onClick={selectAllLeaves} className="ml-2 text-xs text-blue-700 hover:underline">Select all</button>
+                  <button onClick={clearLeafSelection} className="text-xs text-gray-600 hover:underline">Clear</button>
+                </>
+              ) : (
+                children.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => onChange(c.key)}
+                    className={`inline-flex items-center px-1.5 py-1 rounded-md shadow-md border transition-colors whitespace-nowrap ${
+                      c.key === active ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
+                    }`}
+                    aria-pressed={c.key === active}
+                    aria-label={`${currentTop?.label} - ${c.label}`}
+                    title={`${currentTop?.label} - ${c.label}`}
+                  >
+                    {c.Icon ? <c.Icon className="h-4 w-4 mr-2" /> : null}
+                    <span>{c.label}</span>
+                  </button>
+                ))
+              )}
             </div>
           )}
         </div>

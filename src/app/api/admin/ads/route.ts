@@ -34,6 +34,7 @@ export async function GET(request: Request) {
         { title: { contains: q, mode: 'insensitive' } },
         { description: { contains: q, mode: 'insensitive' } },
         { address: { contains: q, mode: 'insensitive' } },
+        { shortCode: { equals: q, mode: 'insensitive' } },
       ],
     };
   }

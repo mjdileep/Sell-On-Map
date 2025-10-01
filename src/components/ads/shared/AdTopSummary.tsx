@@ -14,6 +14,7 @@ export interface AdTopSummaryProps {
   address?: string | null;
   lat?: number;
   lng?: number;
+  preDescription?: string | null;
 }
 
 export default function AdTopSummary({
@@ -27,6 +28,7 @@ export default function AdTopSummary({
   address,
   lat,
   lng,
+  preDescription,
 }: AdTopSummaryProps) {
   const destination = (typeof lat === 'number' && typeof lng === 'number')
     ? `${lat},${lng}`
@@ -68,7 +70,12 @@ export default function AdTopSummary({
         )}
       </div>
       {description && (
-        <div className="px-2 md:px-4 text-gray-700 leading-relaxed">{description}</div>
+        <>
+          {preDescription ? (
+            <div className="px-2 md:px-4 text-[13px] text-gray-900">{preDescription}</div>
+          ) : null}
+          <div className="px-2 md:px-4 text-gray-700 leading-relaxed">{description}</div>
+        </>
       )}
     </div>
   );

@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "next telemetry disable",
     "build": "next build",
     "start": "node server.js",
     "deploy": "bash scripts/deploy.sh",
-    "deply": "bash scripts/deploy.sh",
     "postinstall": "prisma generate",
     "lint": "eslint"
   },

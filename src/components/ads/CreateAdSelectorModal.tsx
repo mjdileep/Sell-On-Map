@@ -163,7 +163,7 @@ export default function CreateAdSelectorModal({ open, onCancel, onSelect, defaul
             </div>
           )}
           
-          <span className={`flex-1 text-left py-2 pr-2 transition-colors
+          <span className={`flex-1 text-left py-2 pr-2 transition-colors 
             ${isSelected ? 'text-blue-700 font-semibold' : 'text-gray-900'}
             ${isSelectable ? 'font-medium' : 'font-normal'}
             ${level === 0 ? 'text-base' : level === 1 ? 'text-sm' : 'text-xs'}

@@ -6,6 +6,7 @@ import { slugify } from '@/lib/slug';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
 import FullDetailRenderer from '@/components/ads/FullDetailRenderer';
+import Script from 'next/script';
 
 type NextPageProps = {
   params?: Promise<Record<string, string | string[] | undefined>>;
@@ -86,6 +87,18 @@ export default async function AdDetailPage(props: NextPageProps) {
 
       <main className="max-w-4xl mx-auto py-16 px-4">
         <div className="bg-white">
+          <Script id="log-ad-open" strategy="afterInteractive">
+            {`
+              try {
+                const body = { eventType: 'ad_open', adId: ${JSON.stringify((ad as any).id)}, path: window.location.pathname };
+                if ('sendBeacon' in navigator) {
+                  navigator.sendBeacon('/api/analytics/event', new Blob([JSON.stringify(body)], { type: 'application/json' }));
+                } else {
+                  fetch('/api/analytics/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true });
+                }
+              } catch {}
+            `}
+          </Script>
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

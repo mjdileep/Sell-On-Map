@@ -4,6 +4,7 @@ import maplibregl, { Popup } from 'maplibre-gl';
 import type { Rental as RentalType } from '@/types/rental';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { createMarkerElementForAd } from '@/components/ads/resolver';
+import { logEvent } from '@/lib/analytics';
 import { createMarkerPopupContent } from '@/components/ads/shared/markerPopup';
  
 
@@ -218,6 +219,7 @@ export default function MapTilerMap({
           .setDOMContent(container)
           .addTo(map);
         markerPopupsRef.current.set(rental.id, popup);
+        try { logEvent({ eventType: 'ad_view', adId: rental.id, metadata: { lat: rental.lat, lng: rental.lng } }); } catch {}
       };
 
       const hideHoverPopup = () => {
@@ -243,6 +245,7 @@ export default function MapTilerMap({
         if (onSelectRental) {
           onSelectRental(rental);
         }
+        try { logEvent({ eventType: 'ad_click', adId: rental.id, metadata: { lat: rental.lat, lng: rental.lng } }); } catch {}
       });
     });
   }, [rentals]);

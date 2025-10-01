@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
+import { logImpressions } from '@/app/api/ads/utils';
+import { computeShortCode } from '@/lib/slug';
 
 function parseCategory(raw?: string | null): string {
   const c = (raw || '').trim().toLowerCase();
@@ -24,13 +26,23 @@ export async function GET(request: Request) {
   const neLat = searchParams.get('neLat');
   const neLng = searchParams.get('neLng');
   const category = parseCategory(searchParams.get('category'));
+  const multiCatsRaw = searchParams.getAll('categories');
+  const multiCategories = multiCatsRaw
+    .flatMap((v) => (v || '').split(','))
+    .map((v) => parseCategory(v))
+    .filter((v) => v && v !== 'all');
   const vwRaw = searchParams.get('vw');
   const vhRaw = searchParams.get('vh');
   const kRaw = searchParams.get('k');
 
   // Only show approved and active ads publicly
   const whereBase: any = { isActive: true, moderationStatus: 'APPROVED' } as any;
-  if (category !== 'all') whereBase.category = { startsWith: category };
+  if (Array.isArray(multiCategories) && multiCategories.length > 0) {
+    // OR across selected leaf categories
+    whereBase.OR = multiCategories.map((c) => ({ category: { startsWith: c } }));
+  } else if (category !== 'all') {
+    whereBase.category = { startsWith: category };
+  }
 
   let ads;
   if (swLat && swLng && neLat && neLng) {
@@ -81,23 +93,50 @@ export async function GET(request: Request) {
   }
   k = Math.min(k, Array.isArray(ads) ? ads.length : 0);
 
-  // Attach unified details JSON onto each ad
-  let adsWithVariant = (ads as any[]).map((a) => ({
+  // Attach unified details JSON and perform Bernoulli (binomial) sampling weighted by boost
+  const fullList = (ads as any[]).map((a) => ({
     ...a,
     details: (a as any).attributes || undefined,
   }));
-  if (k > 0 && adsWithVariant.length > 0) {
-    const selected = new Set<number>();
-    while (selected.size < k) {
-      selected.add(Math.floor(Math.random() * adsWithVariant.length));
+  let returned = fullList;
+  if (k > 0 && fullList.length > k) {
+    const weights = fullList.map((a: any) => Math.max(1, Number(a.boost || 1)));
+    // Find constant c such that sum(min(1, c*w_i)) ~= k via binary search
+    let lo = 0;
+    let hi = 1;
+    const sumP = (c: number) => weights.reduce((s, w) => s + Math.min(1, c * w), 0);
+    while (sumP(hi) < k && hi < 1e6) hi *= 2;
+    for (let iter = 0; iter < 25; iter++) {
+      const mid = (lo + hi) / 2;
+      if (sumP(mid) >= k) hi = mid; else lo = mid;
     }
-    adsWithVariant = adsWithVariant.map((ad, idx) => ({
-      ...ad,
-      markerVariant: selected.has(idx) ? 'full' : 'dot',
-    }));
+    const c = hi;
+    const selected: any[] = [];
+    const rest: any[] = [];
+    for (let i = 0; i < fullList.length; i++) {
+      const p = Math.min(1, c * weights[i]);
+      if (Math.random() < p) selected.push(fullList[i]); else rest.push(fullList[i]);
+    }
+    // If we selected too few or too many, trim/pad to roughly k
+    if (selected.length > k) {
+      // Randomly drop extras
+      selected.sort(() => Math.random() - 0.5);
+      returned = selected.slice(0, k);
+    } else if (selected.length < Math.min(k, fullList.length)) {
+      // Top up using highest-weight rest items
+      const restWithW = rest.map((item, idx) => ({ item, w: weights[fullList.indexOf(item)] }));
+      restWithW.sort((a, b) => b.w - a.w);
+      const need = Math.min(k, fullList.length) - selected.length;
+      returned = selected.concat(restWithW.slice(0, need).map(r => r.item));
+    } else {
+      returned = selected;
+    }
   }
-  // Strip raw relations before returning
-  const sanitized = adsWithVariant.map(({ attributes, ...rest }) => rest);
+  const sanitized = returned.map(({ attributes, ...rest }) => ({ ...rest, markerVariant: 'full' }));
+  try {
+    const impressionIds = sanitized.map((a:any) => a.id);
+    if (impressionIds.length > 0) await logImpressions(impressionIds);
+  } catch {}
   return NextResponse.json(sanitized);
 }
 
@@ -144,6 +183,12 @@ function validateAdPayload(payload: any): ValidationResult {
     requireDetail('floorArea.unit', 'Floor area unit');
     if (category.includes('property.rental.building.residential.shared')) {
       requireDetail('rooms.beds', 'Beds (vacant)');
+      // Gender preference is required for shared residential rentals
+      const pg = String((details as any)?.preferredGender || '').toLowerCase();
+      const allowed = ['male', 'female', 'any'];
+      if (!pg || !allowed.includes(pg)) {
+        errors.push('Missing or invalid Gender (preferredGender)');
+      }
     }
   } else if (category.startsWith('property.for-sale.building')) {
     requireDetail('type', 'Type');
@@ -199,6 +244,12 @@ export async function POST(request: Request) {
       attributes: details && typeof details === 'object' ? details : undefined,
     } as any,
   });
+  // Compute and persist shortCode if not set
+  try {
+    const sc = computeShortCode(userId, new Date(created.createdAt as any));
+    await prisma.ad.update({ where: { id: created.id }, data: { shortCode: sc } as any } as any);
+    (created as any).shortCode = sc;
+  } catch {}
   return NextResponse.json(created, { status: 201 });
 }
 

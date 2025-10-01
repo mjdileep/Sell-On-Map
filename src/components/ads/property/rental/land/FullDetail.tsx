@@ -160,7 +160,7 @@ export default function FullDetail({ ad }: { ad: Ad }) {
             </div>
           </div>
         )}
-        <AdContactInfo contact={details?.extras?.contact as any} />
+        <AdContactInfo adId={ad.id} adTitle={ad.title} shortCode={(ad as any).shortCode} contact={details?.extras?.contact as any} />
       </div>
       <div className="p-2 md:p-4 pb-0"> 
         <AdListedFooter createdAt={ad.createdAt} mode="inline" />

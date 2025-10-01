@@ -9,65 +9,75 @@ export default function MyListingCard({ ad }: { ad: Ad }) {
   const details: any = (ad as any).details || {};
   const fa = details?.floorArea;
   const ls = details?.landSize;
+
+  // Collect all detail items for responsive layout
+  const detailItems = [];
+  if (details?.type) detailItems.push({ label: "Type", value: String(details.type) });
+  if (fa && fa.value && fa.unit) detailItems.push({ label: "Floor Area", value: `${fa.value} ${fa.unit}` });
+  if (ls && ls.value && ls.unit) detailItems.push({ label: "Land Size", value: `${ls.value} ${ls.unit}` });
+  if (details?.structure?.floors) detailItems.push({ label: "Floors", value: details.structure.floors });
+  if (details?.rooms?.bedrooms) detailItems.push({ label: "Bedrooms", value: details.rooms.bedrooms });
+  if (details?.rooms?.bathrooms) detailItems.push({ label: "Bathrooms", value: details.rooms.bathrooms });
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div className="sm:col-span-1">
-        {ad.photos?.[0] ? (
-          <ResponsiveImg
-            src={ad.photos[0]}
-            alt={ad.title}
-            className="w-full h-40 object-cover rounded-lg"
-            sizesAttr="(max-width: 768px) 100vw, 320px"
-          />
-        ) : null}
-      </div>
-      <div className="sm:col-span-2 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-xl font-bold text-gray-900 mb-1">{ad.title}</h3>
-            <div className="flex items-center text-gray-600">
-              <MapPin className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500" />
-              <span className="truncate text-sm font-medium">{ad.address}</span>
-            </div>
-          </div>
-          <div className="flex items-center text-indigo-700 bg-indigo-50 rounded-lg px-3 py-2">
-            <Building2 className="w-4 h-4 mr-1" />
-            <span className="text-lg font-bold">{formatCurrency(ad.price, (ad as any).currency || "USD")}</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
-          {details?.type && (
-            <div>
-              <span className="text-gray-500">Type:</span> {String(details.type)}
-            </div>
-          )}
-          {fa && fa.value && fa.unit && (
-            <div>
-              <span className="text-gray-500">Floor Area:</span> {fa.value} {fa.unit}
-            </div>
-          )}
-          {ls && ls.value && ls.unit && (
-            <div>
-              <span className="text-gray-500">Land Size:</span> {ls.value} {ls.unit}
-            </div>
-          )}
-          {details?.structure?.floors && (
-            <div>
-              <span className="text-gray-500">Floors:</span> {details.structure.floors}
-            </div>
-          )}
-          {details?.rooms?.bedrooms && (
-            <div>
-              <span className="text-gray-500">Bedrooms:</span> {details.rooms.bedrooms}
-            </div>
-          )}
-          {details?.rooms?.bathrooms && (
-            <div>
-              <span className="text-gray-500">Bathrooms:</span> {details.rooms.bathrooms}
+    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
+      <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:gap-4">
+        {/* Image Section - Responsive sizing */}
+        <div className="sm:col-span-4 lg:col-span-3">
+          {ad.photos?.[0] ? (
+            <ResponsiveImg
+              src={ad.photos[0]}
+              alt={ad.title}
+              className="w-full aspect-[4/3] sm:aspect-square object-cover rounded-lg"
+              sizesAttr="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            />
+          ) : (
+            <div className="w-full aspect-[4/3] sm:aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+              <Building2 className="w-8 h-8 text-gray-400" />
             </div>
           )}
         </div>
-        <p className="text-gray-700 leading-relaxed line-clamp-3">{ad.description}</p>
+
+        {/* Content Section */}
+        <div className="sm:col-span-8 lg:col-span-9 flex flex-col gap-3">
+          {/* Header with title, location, and price */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 line-clamp-2">
+                {ad.title}
+              </h3>
+              <div className="flex items-start gap-2 text-gray-600">
+                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-500" />
+                <span className="text-sm font-medium line-clamp-1">{ad.address}</span>
+              </div>
+            </div>
+
+            {/* Price Badge - Responsive sizing and positioning */}
+            <div className="flex items-center text-indigo-700 bg-indigo-50 rounded-lg px-2 py-1 sm:px-3 sm:py-2 self-start sm:self-center">
+              <Building2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+              <span className="text-sm sm:text-lg font-bold">
+                {formatCurrency(ad.price, (ad as any).currency || "USD")}
+              </span>
+            </div>
+          </div>
+
+          {/* Details Section - Responsive grid */}
+          {detailItems.length > 0 && (
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+              {detailItems.map((item, index) => (
+                <div key={index} className="text-sm text-gray-700">
+                  <span className="text-gray-500 text-xs sm:text-sm">{item.label}:</span>
+                  <span className="ml-1 font-medium">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Description */}
+          <p className="text-sm sm:text-base text-gray-700 leading-relaxed line-clamp-3">
+            {ad.description}
+          </p>
+        </div>
       </div>
     </div>
   );
