@@ -91,9 +91,9 @@ export default function CategoryTabs({ active, onChange, compact = false, select
 
   const topTabs = useMemo(() => {
     const children = categoryTree?.children || [];
-    // If there's only one child under root, use just that child without "All"
+    // If there's only one child under root, hide all top-level tabs
     if (children.length === 1) {
-      return children;
+      return [];
     }
     // Otherwise include "All" option
     return [{ key: 'all', label: 'All', Icon: Layers, enabled: true } as CategoryNode, ...children];
@@ -103,7 +103,13 @@ export default function CategoryTabs({ active, onChange, compact = false, select
     return topLevelOf(effectiveActiveKey);
   }, [effectiveActiveKey]);
 
-  const currentTop = useMemo(() => topTabs.find(t => t.key === currentTopKey) || topTabs[0], [topTabs, currentTopKey]);
+  const currentTop = useMemo(() => {
+    if (topTabs.length > 0) {
+      return topTabs.find(t => t.key === currentTopKey) || topTabs[0];
+    }
+    // When no top tabs (only one category), use that category as the current top
+    return categoryTree?.children?.[0] || null;
+  }, [topTabs, currentTopKey, categoryTree]);
 
   const activeNode = useMemo(() => categoryTree ? findNode(categoryTree, effectiveActiveKey) || currentTop : currentTop, [effectiveActiveKey, currentTop, categoryTree]);
   const breadcrumbs = useMemo(() => categoryTree ? getPath(categoryTree, effectiveActiveKey).slice(1) : [], [effectiveActiveKey, categoryTree]); // exclude virtual root
@@ -146,10 +152,10 @@ export default function CategoryTabs({ active, onChange, compact = false, select
           aria-expanded={open}
         >
           {CurrentIcon ? <CurrentIcon className={`h-4 w-4 mr-2`} /> : null}
-          <span>{activeNode?.label || topTabs[0]?.label || 'All'}</span>
+          <span>{activeNode?.label || currentTop?.label || 'All'}</span>
           <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
-        {open && (
+        {open && topTabs.length > 0 && (
           <div className={`absolute z-10 mt-2 w-64 bg-white border border-gray-300 rounded-md shadow-md max-h-96 overflow-y-auto`}
           >
             <div className="p-2 border-b text-xs text-gray-500 font-semibold">Top Level</div>
@@ -183,7 +189,7 @@ export default function CategoryTabs({ active, onChange, compact = false, select
                 </div>
               ) : (
                 children.map(c => (
-                  <button key={c.key} onClick={() => { onChange(c.key); setOpen(false); }} className={`w-full text-left px-3 py-1.5 rounded ${c.key === active ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100'}`}>{c.label}</button>
+                  <button key={c.key} onClick={() => { onChange(c.key); setOpen(false); }} className={`w-full text-left px-3 py-1.5 rounded ${c.key === effectiveActiveKey ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100'}`}>{c.label}</button>
                 ))
               )}
             </div>
@@ -225,14 +231,14 @@ export default function CategoryTabs({ active, onChange, compact = false, select
               <div className="flex items-center bg-white rounded-md shadow-[0_-4px_15px_rgba(0,0,0,0.1)] px-2">
                 {breadcrumbs.map((node, idx) => ( //skip the first one
                   <span key={node.key} className="flex items-center gap-1">
-                    <span className="text-gray-300 px-1">➤</span> 
+                    <span className="text-gray-300 text-lg px-1">➤</span> 
                     <button
                       onClick={() => {
                         const isActiveCrumb = node.key === active;
                         const parentKey = idx === 0 ? breadcrumbs[0]?.key : breadcrumbs[idx]?.key;
                         onChange(isActiveCrumb ? (parentKey ?? node.key) : node.key);
                       }}
-                      className={`py-1 rounded hover:bg-gray-100 whitespace-nowrap ${node.key === active ? 'text-blue-700 font-semibold' : ''}`}
+                      className={`py-2 rounded hover:bg-gray-100 whitespace-nowrap ${node.key === effectiveActiveKey ? 'text-blue-700 font-semibold' : ''}`}
                       title={node.label}
                     >
                       {node.label}
@@ -252,7 +258,7 @@ export default function CategoryTabs({ active, onChange, compact = false, select
                           <button
                             key={c.key}
                             onClick={() => toggleLeafSelection(c.key)}
-                            className={`inline-flex items-center px-1.5 py-1 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] rounded-md border transition-colors whitespace-nowrap ${
+                            className={`inline-flex items-center px-1.5 py-2 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] rounded-md border transition-colors whitespace-nowrap ${
                               selected ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
                             }`}
                             aria-pressed={selected}
@@ -272,10 +278,10 @@ export default function CategoryTabs({ active, onChange, compact = false, select
                       <button
                         key={c.key}
                         onClick={() => onChange(c.key)}
-                        className={`inline-flex items-center px-1.5 py-1 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] rounded-md border transition-colors whitespace-nowrap ${
-                          c.key === active ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
+                        className={`inline-flex items-center px-1.5 py-2 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] rounded-md border transition-colors whitespace-nowrap ${
+                          c.key === effectiveActiveKey ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
                         }`}
-                        aria-pressed={c.key === active}
+                        aria-pressed={c.key === effectiveActiveKey}
                         aria-label={`${currentTop?.label} - ${c.label}`}
                         title={`${currentTop?.label} - ${c.label}`}
                       >
@@ -292,45 +298,47 @@ export default function CategoryTabs({ active, onChange, compact = false, select
       </div>
 
 
-      <div className="w-full overflow-x-auto">
-        <div role="tablist" aria-label="Categories" className="flex items-center gap-1 whitespace-nowrap pr-1 justify-center lg:justify-start">
-          {topTabs.map((t) => {
-            const isActiveTop = t.key === currentTopKey;
-            return (
-              <span key={t.key} className="inline-flex items-center gap-1 pb-0.5">
-                <button
-                  onClick={() => onChange(t.key)}
+      {topTabs.length > 0 && (
+        <div className="w-full overflow-x-auto">
+          <div role="tablist" aria-label="Categories" className="flex items-center gap-1 whitespace-nowrap pr-1 justify-center lg:justify-start">
+            {topTabs.map((t) => {
+              const isSelected = t.key === effectiveActiveKey;
+              return (
+                <span key={t.key} className="inline-flex items-center gap-1 pb-0.5">
+                  <button
+                    onClick={() => onChange(t.key)}
                   className={`px-4 py-2 text-sm font-bold rounded-md border md:shadow-md shadow-[0_-4px_15px_rgba(0,0,0,0.1)] transition-colors ${
-                    isActiveTop ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
+                    isSelected ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
                   }`}
-                  role="tab"
-                  aria-selected={isActiveTop}
-                  title={t.label}
-                >
-                  {t.Icon ? <t.Icon className="h-4 w-4 mr-2 inline-block" /> : null}
-                  {t.label}
-                </button>
-              </span>
-            );
-          })}
+                    role="tab"
+                    aria-selected={t.key === effectiveActiveKey}
+                    title={t.label}
+                  >
+                    {t.Icon ? <t.Icon className="h-4 w-4 mr-2 inline-block" /> : null}
+                    {t.label}
+                  </button>
+                </span>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
     <div className="hidden lg:block">
       {/* Breadcrumbs for deeper levels beyond the immediate children */}
       {breadcrumbs.length > 0 && (activeLevel > 2 || children.length > 0) && (
-        <div className="flex items-center gap-2 text-sm text-gray-600 p-2">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
           <div className="flex items-center bg-white rounded-md shadow-md px-2">
             {breadcrumbs.map((node, idx) => ( //skip the first one
               <span key={node.key} className="flex items-center gap-1">
-                <span className="text-gray-300 px-1">➤</span> 
+                <span className="text-gray-300 text-lg px-1">➤</span> 
                 <button
                   onClick={() => {
                     const isActiveCrumb = node.key === active;
                     const parentKey = idx === 0 ? breadcrumbs[0]?.key : breadcrumbs[idx]?.key;
                     onChange(isActiveCrumb ? (parentKey ?? node.key) : node.key);
                   }}
-                  className={`py-1 rounded hover:bg-gray-100 ${node.key === active ? 'text-blue-700 font-semibold' : ''}`}
+                  className={`py-2 rounded hover:bg-gray-100 ${node.key === effectiveActiveKey ? 'text-blue-700 font-semibold' : ''}`}
                   title={node.label}
                 >
                  {node.label}
@@ -350,7 +358,7 @@ export default function CategoryTabs({ active, onChange, compact = false, select
                       <button
                         key={c.key}
                         onClick={() => toggleLeafSelection(c.key)}
-                        className={`inline-flex items-center px-1.5 py-1 rounded-md shadow-md border transition-colors whitespace-nowrap ${
+                        className={`inline-flex items-center px-1.5 py-2 rounded-md shadow-md border transition-colors whitespace-nowrap ${
                           selected ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
                         }`}
                         aria-pressed={selected}
@@ -370,10 +378,10 @@ export default function CategoryTabs({ active, onChange, compact = false, select
                   <button
                     key={c.key}
                     onClick={() => onChange(c.key)}
-                    className={`inline-flex items-center px-1.5 py-1 rounded-md shadow-md border transition-colors whitespace-nowrap ${
-                      c.key === active ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
+                    className={`inline-flex items-center px-1.5 py-2 rounded-md shadow-md border transition-colors whitespace-nowrap ${
+                      c.key === effectiveActiveKey ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-blue-700 text-gray-700 hover:bg-gray-100"
                     }`}
-                    aria-pressed={c.key === active}
+                    aria-pressed={c.key === effectiveActiveKey}
                     aria-label={`${currentTop?.label} - ${c.label}`}
                     title={`${currentTop?.label} - ${c.label}`}
                   >

@@ -104,38 +104,37 @@ function priceColorClass(ad: Ad): string {
 }
 
 export function createMarkerPopupContent(ad: Ad, markerVariant: 'full' | 'dot' = 'full', title?: string | null): HTMLDivElement {
-  const container = createEl('div', 'ml-popup p-2 max-w-[280px]');
-
-  // Add title at the top if provided
-  if (title) {
-    const titleEl = createEl('div', 'text-[13px] font-semibold text-gray-800 mb-2 leading-tight', truncate(title, 50));
-    container.appendChild(titleEl);
-  }
-
-  const row = createEl('div', 'flex items-start gap-2');
-  container.appendChild(row);
+  const container = createEl('div', 'ml-popup max-w-[280px]');
 
   const thumbnailUrl = (ad as any).photos?.[0];
   if (thumbnailUrl) {
-    const thumbWrap = createEl('div', 'flex-shrink-0');
-    const img = createEl('img', 'w-14 h-14 object-cover rounded-md border');
+    const img = createEl('img', 'w-full h-32 object-cover rounded-lg border');
     img.setAttribute('src', String(thumbnailUrl));
     img.setAttribute('alt', truncate(ad.title, 40));
-    thumbWrap.appendChild(img);
-    row.appendChild(thumbWrap);
+    container.appendChild(img);
   }
 
-  const right = createEl('div', 'flex-1 min-w-0');
-  row.appendChild(right);
+  // Content section with padding
+  const contentSection = createEl('div', 'p-2');
+  container.appendChild(contentSection);
+
+  // Add title below the image
+  if (title) {
+    const titleEl = createEl('div', 'text-[13px] font-semibold text-gray-800 mb-2 leading-tight', truncate(title, 50));
+    contentSection.appendChild(titleEl);
+  }
+
+  const details = createEl('div', 'space-y-1');
+  contentSection.appendChild(details);
 
   const priceEl = createEl('div', `text-[12px] font-bold ${priceColorClass(ad)}`, priceText(ad));
-  right.appendChild(priceEl);
+  details.appendChild(priceEl);
 
   const metrics = metricParts(ad);
   if (metrics.length > 0) {
-    const metricsEl = createEl('div', 'text-[11px] text-gray-600 truncate whitespace-pre-line');
-    metricsEl.textContent = metrics.join('\n');
-    right.appendChild(metricsEl);
+    const metricsEl = createEl('div', 'text-[11px] text-gray-600');
+    metricsEl.textContent = metrics.join(' | ');
+    details.appendChild(metricsEl);
   }
 
   return container as HTMLDivElement;
