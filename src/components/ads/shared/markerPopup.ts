@@ -4,6 +4,7 @@ import type { Rental as Ad } from "@/types/rental";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { pricePerPerch } from "@/lib/area";
 import { unitNames } from "@/lib/unitNames";
+import { timeAgo } from "@/lib/timeAgo";
 
 function createEl<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, textContent?: string): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
@@ -135,6 +136,13 @@ export function createMarkerPopupContent(ad: Ad, markerVariant: 'full' | 'dot' =
     const metricsEl = createEl('div', 'text-[11px] text-gray-600');
     metricsEl.textContent = metrics.join(' | ');
     details.appendChild(metricsEl);
+  }
+
+  // Add time ago at bottom right in gray
+  if (ad.createdAt) {
+    const timeAgoEl = createEl('div', 'text-[10px] text-gray-500 mt-1 text-right');
+    timeAgoEl.textContent = `Posted ${timeAgo(ad.createdAt)}`;
+    details.appendChild(timeAgoEl);
   }
 
   return container as HTMLDivElement;

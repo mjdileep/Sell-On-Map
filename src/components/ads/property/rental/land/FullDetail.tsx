@@ -22,6 +22,7 @@ export default function FullDetail({ ad }: { ad: Ad }) {
         address={ad.address}
         lat={ad.lat}
         lng={ad.lng}
+        createdAt={ad.createdAt}
       />
       <div className="p-2 md:p-4 grid grid-cols-1 gap-2 text-sm text-gray-700">
         {details?.type && (

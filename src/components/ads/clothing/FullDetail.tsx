@@ -17,6 +17,7 @@ export default function FullDetail({ ad }: { ad: Ad }) {
         address={ad.address}
         lat={ad.lat}
         lng={ad.lng}
+        createdAt={ad.createdAt}
       />
       <AdListedFooter createdAt={ad.createdAt} />
     </>

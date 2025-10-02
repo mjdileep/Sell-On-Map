@@ -9,6 +9,7 @@ import { ConfigProvider, useConfig } from './config-context';
 import { logEvent, logPageView } from '@/lib/analytics';
 import Modal from '@/components/Modal';
 import Image from 'next/image';
+import { useUserActivity } from '@/lib/useUserActivity';
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -46,6 +47,9 @@ function Shell({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const user = session?.user as any;
   const { country } = useConfig();
+
+  // Track user activity
+  useUserActivity();
 
   useEffect(() => {
     // Fire a pageview on initial load and on visibility changes back to visible

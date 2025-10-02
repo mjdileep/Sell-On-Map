@@ -29,10 +29,25 @@ export const authOptions = {
       try {
         await prisma.user.update({
           where: { id: user.id },
-          data: { adActiveDays: defaultAdActiveDays, maxActiveAds: defaultMaxActiveAds },
+          data: {
+            adActiveDays: defaultAdActiveDays,
+            maxActiveAds: defaultMaxActiveAds,
+            lastActive: new Date()
+          },
         });
       } catch (_) {
         // Ignore if user not found or update fails; DB defaults still apply
+      }
+    },
+    async signIn({ user }: any) {
+      // Update lastActive when user signs in
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastActive: new Date() },
+        });
+      } catch (_) {
+        // Ignore if user not found or update fails
       }
     },
   },

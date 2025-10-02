@@ -2,6 +2,7 @@
 
 import ImageSlider from "@/components/ImageSlider";
 import { formatCurrency } from "@/lib/currencyUtils";
+import { timeAgo } from "@/lib/timeAgo";
 
 export interface AdTopSummaryProps {
   images?: string[] | null;
@@ -15,6 +16,7 @@ export interface AdTopSummaryProps {
   lat?: number;
   lng?: number;
   preDescription?: string | null;
+  createdAt?: string;
 }
 
 export default function AdTopSummary({
@@ -29,6 +31,7 @@ export default function AdTopSummary({
   lat,
   lng,
   preDescription,
+  createdAt,
 }: AdTopSummaryProps) {
   const destination = (typeof lat === 'number' && typeof lng === 'number')
     ? `${lat},${lng}`
@@ -69,6 +72,11 @@ export default function AdTopSummary({
           </span>
         )}
       </div>
+      {createdAt && (
+        <div className="px-2 text-[12px] text-gray-500">
+          Posted {timeAgo(createdAt)}
+        </div>
+      )}
       {description && (
         <>
           {preDescription ? (

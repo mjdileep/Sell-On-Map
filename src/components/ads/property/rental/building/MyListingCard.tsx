@@ -1,7 +1,7 @@
 "use client";
 
 import type { Rental as Ad } from "@/types/rental";
-import { MapPin, Bed, Bath, Home, Minus, Plus } from "lucide-react";
+import { MapPin, Bed, Bath, Home, Minus, Plus, Maximize2, Users } from "lucide-react";
 import { formatCurrency } from "@/lib/currencyUtils";
 import ResponsiveImg from "@/components/ResponsiveImg";
 import { useState } from "react";
@@ -31,104 +31,105 @@ export default function MyListingCard({ ad }: { ad: Ad }) {
     }
   }
 
-  // Collect all detail items for responsive layout
-  const detailItems = [];
-  if (details?.rooms?.bedrooms) {
-    detailItems.push({
-      icon: <Bed className="w-4 h-4" />,
-      text: `${details.rooms.bedrooms} bedroom${details.rooms.bedrooms > 1 ? 's' : ''}`,
-      action: null
-    });
-  }
-  if (details?.rooms?.bathrooms) {
-    detailItems.push({
-      icon: <Bath className="w-4 h-4" />,
-      text: `${details.rooms.bathrooms} bathroom${details.rooms.bathrooms > 1 ? 's' : ''}`,
-      action: null
-    });
-  }
-  if (typeof details?.rooms?.beds === 'number') {
-    detailItems.push({
-      icon: <Bed className="w-4 h-4" />,
-      text: `${details.rooms.beds} beds`,
-      action: isShared ? (
-        <div className="flex items-center gap-1 ml-2">
-          <button disabled={saving} onClick={() => adjustBeds(-1)} className="px-1.5 py-0.5 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-50" aria-label="Decrease beds">
-            <Minus className="w-3 h-3" />
-          </button>
-          <button disabled={saving} onClick={() => adjustBeds(1)} className="px-1.5 py-0.5 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-50" aria-label="Increase beds">
-            <Plus className="w-3 h-3" />
-          </button>
-        </div>
-      ) : null
-    });
-  }
-  if (fa && fa.value && fa.unit) {
-    detailItems.push({
-      icon: null,
-      text: `${fa.value} ${fa.unit}`,
-      action: null
-    });
-  }
-
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-shadow">
-      <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:gap-4">
-        {/* Image Section - Responsive sizing */}
-        <div className="sm:col-span-4 lg:col-span-3">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition-all">
+      <div className="flex gap-3 p-3">
+        {/* Compact Image */}
+        <div className="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
           {ad.photos?.[0] ? (
             <ResponsiveImg
               src={ad.photos[0]}
               alt={ad.title}
-              className="w-full aspect-[4/3] sm:aspect-square object-cover rounded-lg"
-              sizesAttr="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              className="w-full h-full object-cover rounded-md"
+              sizesAttr="128px"
             />
           ) : (
-            <div className="w-full aspect-[4/3] sm:aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center">
               <Home className="w-8 h-8 text-gray-400" />
             </div>
           )}
         </div>
 
-        {/* Content Section */}
-        <div className="sm:col-span-8 lg:col-span-9 flex flex-col gap-3">
-          {/* Header with title, location, and price */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 line-clamp-2">
-                {ad.title}
-              </h3>
-              <div className="flex items-start gap-2 text-gray-600">
-                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-500" />
-                <span className="text-sm font-medium line-clamp-1">{ad.address}</span>
-              </div>
-            </div>
-
-            {/* Price Badge - Responsive sizing and positioning */}
-            <div className="flex items-center text-blue-700 bg-blue-50 rounded-lg px-2 py-1 sm:px-3 sm:py-2 self-start sm:self-center">
-              <Home className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
-              <span className="text-sm sm:text-lg font-bold">
+        {/* Content - Optimized for density */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          {/* Title & Price Row */}
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 line-clamp-2 flex-1">
+              {ad.title}
+            </h3>
+            <div className="flex flex-col items-end flex-shrink-0">
+              <div className="text-lg sm:text-xl font-bold text-blue-600 whitespace-nowrap">
                 {formatCurrency(ad.price, (ad as any).currency || "USD")}
+              </div>
+              <span className="text-xs text-gray-500">
                 {isShared ? '/person/mo' : '/mo'}
               </span>
             </div>
           </div>
 
-          {/* Details Section - Responsive layout */}
-          {detailItems.length > 0 && (
-            <div className="flex flex-wrap gap-3 sm:gap-4">
-              {detailItems.map((item, index) => (
-                <div key={index} className="flex items-center text-sm text-gray-700">
-                  {item.icon && <span className="mr-1 flex-shrink-0">{item.icon}</span>}
-                  <span className="font-medium">{item.text}</span>
-                  {item.action && <span className="ml-1">{item.action}</span>}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Key Details - Compact Badges */}
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {isShared && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-xs font-medium text-purple-700">
+                <Users className="w-3 h-3" />
+                Shared
+              </span>
+            )}
+            {details?.rooms?.bedrooms && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-xs font-medium text-blue-700">
+                <Bed className="w-3 h-3" />
+                {details.rooms.bedrooms} BR
+              </span>
+            )}
+            {details?.rooms?.bathrooms && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-xs font-medium text-blue-700">
+                <Bath className="w-3 h-3" />
+                {details.rooms.bathrooms} BA
+              </span>
+            )}
+            {typeof details?.rooms?.beds === 'number' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 font-medium text-amber-700">
+                <Bed className="w-3 h-3" />
+                Available beds:
+                {isShared && (
+                  <span className="inline-flex items-center gap-1">
+                    <button 
+                      disabled={saving} 
+                      onClick={(e) => { e.stopPropagation(); adjustBeds(-1); }} 
+                      className="p-0.5 border rounded hover:bg-amber-100 disabled:opacity-50 transition-colors" 
+                      aria-label="Decrease beds"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    {details.rooms.beds} 
+                    <button 
+                      disabled={saving} 
+                      onClick={(e) => { e.stopPropagation(); adjustBeds(1); }} 
+                      className="p-0.5 border rounded hover:bg-amber-100 disabled:opacity-50 transition-colors" 
+                      aria-label="Increase beds"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </span>
+            )}
+            {fa?.value && fa?.unit && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-xs font-medium text-emerald-700">
+                <Maximize2 className="w-3 h-3" />
+                {fa.value} {fa.unit}
+              </span>
+            )}
+          </div>
 
-          {/* Description */}
-          <p className="text-sm sm:text-base text-gray-700 leading-relaxed line-clamp-3">
+          {/* Location */}
+          <div className="flex items-center gap-1.5 text-gray-600 text-xs sm:text-sm">
+            <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">{ad.address}</span>
+          </div>
+
+          {/* Description - Only on larger screens */}
+          <p className="hidden sm:block text-sm text-gray-600 line-clamp-2 leading-snug">
             {ad.description}
           </p>
         </div>

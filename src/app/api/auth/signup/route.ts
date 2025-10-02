@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       name,
       adActiveDays: defaultAdActiveDays,
       maxActiveAds: defaultMaxActiveAds,
+      lastActive: new Date(),
     },
   });
   return NextResponse.json({ id: user.id, email: user.email, name: user.name }, { status: 201 });

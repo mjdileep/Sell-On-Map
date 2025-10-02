@@ -93,46 +93,126 @@ export async function GET(request: Request) {
   }
   k = Math.min(k, Array.isArray(ads) ? ads.length : 0);
 
-  // Attach unified details JSON and perform Bernoulli (binomial) sampling weighted by boost
+  // Attach unified details JSON
   const fullList = (ads as any[]).map((a) => ({
     ...a,
     details: (a as any).attributes || undefined,
   }));
-  let returned = fullList;
-  if (k > 0 && fullList.length > k) {
-    const weights = fullList.map((a: any) => Math.max(1, Number(a.boost || 1)));
-    // Find constant c such that sum(min(1, c*w_i)) ~= k via binary search
-    let lo = 0;
-    let hi = 1;
-    const sumP = (c: number) => weights.reduce((s, w) => s + Math.min(1, c * w), 0);
-    while (sumP(hi) < k && hi < 1e6) hi *= 2;
-    for (let iter = 0; iter < 25; iter++) {
-      const mid = (lo + hi) / 2;
-      if (sumP(mid) >= k) hi = mid; else lo = mid;
+
+  // New listing algorithm:
+  // 1) Take a super-sample of size 2N from newest-first list
+  // 2) Split into boosted (boost > 1) and normal (boost = 1)
+  // 3) Binomial sample (weighted without replacement) each group separately:
+  //    - Boosted: weight = boost value
+  //    - Normal:  weight = inverse age (1 / (1 + ageHours))
+  // 4) Concat boosted-first, then normal
+  // 5) Return top N
+
+  function weightedBinomialSample(items: any[], weights: number[], target: number): any[] {
+    const n = items.length;
+    if (target <= 0 || n === 0) return [];
+    if (target >= n) return items.slice();
+
+    // Split positive and zero weights to allow fair fallback
+    const pos: Array<{ idx: number; w: number }> = [];
+    const zero: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const w = Number.isFinite(weights[i]) ? Math.max(0, Number(weights[i])) : 0;
+      if (w > 0) pos.push({ idx: i, w }); else zero.push(i);
     }
-    const c = hi;
-    const selected: any[] = [];
-    const rest: any[] = [];
-    for (let i = 0; i < fullList.length; i++) {
-      const p = Math.min(1, c * weights[i]);
-      if (Math.random() < p) selected.push(fullList[i]); else rest.push(fullList[i]);
+
+    // Gumbel top-k for positive weights (equivalent to weighted sampling without replacement a.k.a. binomial here)
+    function gumbel(): number {
+      const u = Math.min(1 - 1e-12, Math.max(1e-12, Math.random()));
+      return -Math.log(-Math.log(u));
     }
-    // If we selected too few or too many, trim/pad to roughly k
-    if (selected.length > k) {
-      // Randomly drop extras
-      selected.sort(() => Math.random() - 0.5);
-      returned = selected.slice(0, k);
-    } else if (selected.length < Math.min(k, fullList.length)) {
-      // Top up using highest-weight rest items
-      const restWithW = rest.map((item, idx) => ({ item, w: weights[fullList.indexOf(item)] }));
-      restWithW.sort((a, b) => b.w - a.w);
-      const need = Math.min(k, fullList.length) - selected.length;
-      returned = selected.concat(restWithW.slice(0, need).map(r => r.item));
-    } else {
-      returned = selected;
+    const scored = pos.map(({ idx, w }) => ({ idx, key: Math.log(w) + gumbel() }));
+    scored.sort((a, b) => b.key - a.key);
+    const selectedIdxs: number[] = scored.slice(0, Math.min(target, scored.length)).map((s) => s.idx);
+
+    // If we still need more, fill uniformly at random from zero-weight items
+    if (selectedIdxs.length < target && zero.length > 0) {
+      // Shuffle zero-weight indices and take the remaining
+      for (let i = zero.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = zero[i]; zero[i] = zero[j]; zero[j] = tmp;
+      }
+      const need = target - selectedIdxs.length;
+      selectedIdxs.push(...zero.slice(0, need));
     }
+
+    return selectedIdxs.map((i) => items[i]);
   }
-  const sanitized = returned.map(({ attributes, ...rest }) => ({ ...rest, markerVariant: 'full' }));
+
+  let finalSelected = fullList;
+  if (k > 0 && fullList.length > k) {
+    const nowMs = Date.now();
+
+    // Super-sample: top 2k newest
+    const superK = Math.min(fullList.length, Math.max(k, Math.min(2 * k, fullList.length)));
+    const superSample = fullList.slice(0, superK);
+
+    // Split into boosted (>1) and normal (=1)
+    const boostedSample = superSample.filter((a: any) => Number(a?.boost || 1) > 1);
+    const normalSample = superSample.filter((a: any) => Math.round(Number(a?.boost || 1)) === 1);
+
+    // Weights
+    const boostedWeights = boostedSample.map((a: any) => Math.max(0, Number(a?.boost || 1)));
+    const normalWeights = normalSample.map((a: any) => {
+      const createdAtMs = new Date(a.createdAt as any).getTime();
+      const ageHours = Math.max(0, (nowMs - createdAtMs) / 36e5);
+      return 1 / (1 + ageHours);
+    });
+
+    // Allocate targets proportionally by total weight (fallback to sizes, then half/half)
+    const sumBW = boostedWeights.reduce((s, w) => s + w, 0);
+    const sumNW = normalWeights.reduce((s, w) => s + w, 0);
+    let kBoost = 0;
+    if (sumBW + sumNW > 0) {
+      kBoost = Math.round((k * sumBW) / (sumBW + sumNW));
+    } else {
+      const total = boostedSample.length + normalSample.length;
+      kBoost = total > 0 ? Math.round((k * boostedSample.length) / total) : 0;
+    }
+    kBoost = Math.max(0, Math.min(kBoost, boostedSample.length));
+    let kNormal = Math.max(0, k - kBoost);
+    if (kNormal > normalSample.length) {
+      kNormal = normalSample.length;
+      // If normal is capped, try to move remainder to boosted up to its length
+      const remaining = Math.max(0, k - (kBoost + kNormal));
+      kBoost = Math.max(0, Math.min(boostedSample.length, kBoost + remaining));
+    } else if (kBoost + kNormal < k) {
+      // If boosted got capped earlier, try to move remainder to normal
+      const remaining = Math.max(0, k - (kBoost + kNormal));
+      kNormal = Math.max(0, Math.min(normalSample.length, kNormal + remaining));
+    }
+
+    const selectedBoosted = weightedBinomialSample(boostedSample, boostedWeights, kBoost);
+    const selectedNormal = weightedBinomialSample(normalSample, normalWeights, kNormal);
+
+    finalSelected = selectedBoosted.concat(selectedNormal);
+    if (finalSelected.length < Math.min(k, superSample.length)) {
+      // Top-up deterministically from remaining super-sample, prioritizing boosted then normal by weight
+      const remainingBoosted = boostedSample.filter((a) => !selectedBoosted.includes(a));
+      const remainingNormal = normalSample.filter((a) => !selectedNormal.includes(a));
+      const rbW = remainingBoosted.map((a: any) => Math.max(0, Number(a?.boost || 1)));
+      const rnW = remainingNormal.map((a: any) => {
+        const createdAtMs = new Date(a.createdAt as any).getTime();
+        const ageHours = Math.max(0, (nowMs - createdAtMs) / 36e5);
+        return 1 / (1 + ageHours);
+      });
+      const rbPairs = remainingBoosted.map((item, i) => ({ item, w: rbW[i] || 0 }));
+      const rnPairs = remainingNormal.map((item, i) => ({ item, w: rnW[i] || 0 }));
+      rbPairs.sort((a, b) => b.w - a.w);
+      rnPairs.sort((a, b) => b.w - a.w);
+      for (const p of rbPairs) { if (finalSelected.length >= k) break; finalSelected.push(p.item); }
+      for (const p of rnPairs) { if (finalSelected.length >= k) break; finalSelected.push(p.item); }
+    }
+    // Concat order already boosted-first; finally cap to N
+    finalSelected = finalSelected.slice(0, Math.min(k, superSample.length));
+  }
+
+  const sanitized = finalSelected.map(({ attributes, ...rest }) => ({ ...rest, markerVariant: 'full' }));
   try {
     const impressionIds = sanitized.map((a:any) => a.id);
     if (impressionIds.length > 0) await logImpressions(impressionIds);

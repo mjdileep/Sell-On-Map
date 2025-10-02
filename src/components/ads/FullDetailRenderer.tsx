@@ -18,6 +18,7 @@ function FallbackFullDetail({ ad }: { ad: any }) {
         address={ad?.address}
         lat={ad?.lat}
         lng={ad?.lng}
+        createdAt={ad?.createdAt}
       />
       <AdListedFooter createdAt={ad?.createdAt} />
     </>

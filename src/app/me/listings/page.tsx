@@ -328,7 +328,7 @@ export default function MyListingsPage() {
 
                   {/* Stats */}
                   <div className="mb-4">
-                    <AdStatsChart adId={ad.id} days={14} />
+                    <AdStatsChart adId={ad.id} />
                   </div>
 
                   {/* Actions - Enhanced */}

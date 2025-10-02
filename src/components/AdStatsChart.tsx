@@ -4,12 +4,32 @@ import { useEffect, useState } from 'react';
 
 type Point = { t: string; v: number };
 
-export default function AdStatsChart({ adId, days = 14 }: { adId: string; days?: number }) {
+export default function AdStatsChart({ adId }: { adId: string }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [impressions, setImpressions] = useState<Point[]>([]);
   const [views, setViews] = useState<Point[]>([]);
   const [clicks, setClicks] = useState<Point[]>([]);
+  
+  // Responsive days based on screen size: sm: 7 days, md: 14 days, lg+: 30 days
+  const [days, setDays] = useState(30);
+
+  useEffect(() => {
+    const updateDays = () => {
+      const width = window.innerWidth;
+      if (width < 768) {
+        setDays(7);  // Small screens: 7 days
+      } else if (width < 1024) {
+        setDays(14); // Medium screens: 14 days
+      } else {
+        setDays(30); // Large screens: 30 days
+      }
+    };
+    
+    updateDays();
+    window.addEventListener('resize', updateDays);
+    return () => window.removeEventListener('resize', updateDays);
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -36,8 +56,25 @@ export default function AdStatsChart({ adId, days = 14 }: { adId: string; days?:
     return () => { ignore = true; };
   }, [adId, days]);
 
-  const keys = Array.from(new Set([...(impressions||[]).map(p=>p.t), ...(views||[]).map(p=>p.t), ...(clicks||[]).map(p=>p.t)])).sort();
-  const byKey = (arr: Point[]) => new Map(arr.map(p => [p.t, p.v] as const));
+  // Check if there's any data at all
+  const hasData = impressions.length > 0 || views.length > 0 || clicks.length > 0;
+  
+  // Generate all dates for the full range if there's any data
+  let keys: string[];
+  if (hasData) {
+    // Generate full date range for consistency
+    const to = new Date();
+    const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+    keys = [];
+    for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+      keys.push(d.toISOString().split('T')[0]);
+    }
+  } else {
+    // No data at all, use empty array
+    keys = [];
+  }
+  
+  const byKey = (arr: Point[]) => new Map(arr.map(p => [p.t.split('T')[0], p.v] as const));
   const impMap = byKey(impressions);
   const viewMap = byKey(views);
   const clickMap = byKey(clicks);
@@ -61,10 +98,13 @@ export default function AdStatsChart({ adId, days = 14 }: { adId: string; days?:
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-3 mb-2 text-xs">
-        <div className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-gray-400" /> Impressions</div>
-        <div className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-500" /> Views</div>
-        <div className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-green-600" /> Clicks</div>
+      <div className="flex items-center justify-between mb-2 text-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-gray-400" /> Impressions</div>
+          <div className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-blue-500" /> Views</div>
+          <div className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm bg-green-600" /> Clicks</div>
+        </div>
+        <div className="text-gray-500 font-medium">Last {days} days</div>
       </div>
       <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${series.length}, minmax(0, 1fr))` }}>
         {series.map((s) => (
